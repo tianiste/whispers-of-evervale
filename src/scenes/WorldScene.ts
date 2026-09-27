@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { HorseEntity } from '../entities/HorseEntity';
 import { getHorse, type HorseId } from '../data/horses';
 import { getRiderAppearance, type RiderAppearanceId } from '../data/riderAppearances';
+import { stableKeeperGreeting } from '../data/dialogue';
+import { DialogueBox } from '../ui/DialogueBox';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -9,6 +11,7 @@ const PLAYER_RADIUS = 14;
 const PLAYER_SPEED = 220;
 const HORSE_RADIUS = 25;
 const INTERACTION_RANGE = 70;
+const KEEPER_POSITION = { x: WORLD_WIDTH / 2 - 100, y: WORLD_HEIGHT / 2 };
 
 export class WorldScene extends Phaser.Scene {
   private appearanceId: RiderAppearanceId = 'cream';
@@ -18,6 +21,8 @@ export class WorldScene extends Phaser.Scene {
   private horse!: HorseEntity;
   private horseBody!: Phaser.Physics.Arcade.Body;
   private mounted = false;
+  private dialogueBox!: DialogueBox;
+  private dialogueContinueKeys!: { enter: Phaser.Input.Keyboard.Key; space: Phaser.Input.Keyboard.Key };
   private interactionKey!: Phaser.Input.Keyboard.Key;
   private obstacles: { x: number; y: number; radius: number }[] = [];
   private movementKeys!: {
@@ -68,6 +73,11 @@ export class WorldScene extends Phaser.Scene {
     this.horseBody = this.horse.display.body as Phaser.Physics.Arcade.Body;
     this.horseBody.setCircle(HORSE_RADIUS).setCollideWorldBounds(true);
 
+    this.add.circle(KEEPER_POSITION.x, KEEPER_POSITION.y, 18, 0x8baf82).setStrokeStyle(3, 0xc8b77b);
+    this.add.text(KEEPER_POSITION.x, KEEPER_POSITION.y - 32, 'Stable Keeper', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+      backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
+    }).setOrigin(0.5);
     this.obstacles = [
       { x: 650, y: 380, radius: 38 },
       { x: 1050, y: 550, radius: 48 },
@@ -94,6 +104,7 @@ export class WorldScene extends Phaser.Scene {
     }) as typeof this.movementKeys;
     this.input.keyboard!.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT');
     this.interactionKey = this.input.keyboard!.addKey('E');
+    this.dialogueContinueKeys = this.input.keyboard!.addKeys({ enter: 'ENTER', space: 'SPACE' }) as typeof this.dialogueContinueKeys;
     this.input.keyboard!.addCapture('E');
 
     this.cameras.main
@@ -101,7 +112,7 @@ export class WorldScene extends Phaser.Scene {
       .startFollow(this.player, true, 0.12, 0.12);
 
     this.add
-      .text(16, 16, 'Move: WASD / arrows   Mount or dismount: E', {
+      .text(16, 16, 'Move: WASD / arrows   Talk / mount / dismount: E', {
         color: '#f4e9cf',
         fontFamily: 'Arial, sans-serif',
         fontSize: '16px',
@@ -109,11 +120,21 @@ export class WorldScene extends Phaser.Scene {
         padding: { x: 10, y: 8 },
       })
       .setScrollFactor(0);
+    this.dialogueBox = new DialogueBox(this);
   }
 
   update(): void {
     const keyboard = this.input.keyboard;
     if (!keyboard) return;
+
+    if (this.dialogueBox.isOpen) {
+      this.playerBody.setVelocity(0, 0);
+      this.horseBody.setVelocity(0, 0);
+      if (Phaser.Input.Keyboard.JustDown(this.dialogueContinueKeys.enter) || Phaser.Input.Keyboard.JustDown(this.dialogueContinueKeys.space)) {
+        this.dialogueBox.hide();
+      }
+      return;
+    }
 
     const up = this.movementKeys.up.isDown || this.movementKeys.upArrow.isDown;
     const down = this.movementKeys.down.isDown || this.movementKeys.downArrow.isDown;
@@ -128,6 +149,9 @@ export class WorldScene extends Phaser.Scene {
     }
     if (Phaser.Input.Keyboard.JustDown(this.interactionKey)) {
       if (this.mounted) this.tryDismount();
+      else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, KEEPER_POSITION.x, KEEPER_POSITION.y) <= INTERACTION_RANGE) {
+        this.dialogueBox.show(stableKeeperGreeting);
+      }
       else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y) <= INTERACTION_RANGE) {
         this.mounted = true;
         this.playerBody.enable = false;

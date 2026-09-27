@@ -2,18 +2,18 @@
 
 ## Task completed
 
-T007 — First Horse Choice and Appearance State.
+T008 — Reusable Interaction and Dialogue Slice.
 
 ## Implementation
 
-- Character creation now previews rider options with left/right and first-horse options with up/down.
-- Three typed horses (Maple the Quarter Horse, Silver the Mustang, and Raven the Friesian) use the existing primitive renderer.
-- Enter passes both IDs to `WorldScene`; the selected horse and rider appearance persist during mount/dismount.
+- A placeholder Stable Keeper near the starting area opens a typed greeting when E is pressed in range.
+- `DialogueBox` renders speaker, message, and close instructions above the world. Enter or Space closes it.
+- Both rider and horse movement pause while dialogue is visible, then controls resume.
 
 ## Verification
 
 - `npm run build` passed. Vite printed its existing large-bundle advisory.
-- Chromium verified cycling all three horse options, confirming Raven into the clearing, and seeing Raven while unmounted, mounted, and dismounted.
+- Chromium verified E does nothing outside the keeper range, opens dialogue inside range, blocks movement while open, closes with Space, restores movement, and still mounts the selected horse.
 - `git diff --check` passed.
 
 ## Known issues and blocker
@@ -23,10 +23,9 @@ T007 — First Horse Choice and Appearance State.
 
 ## Relevant next files
 
-- `src/scenes/CharacterCreatorScene.ts`
-- `src/entities/HorseEntity.ts`
 - `src/scenes/WorldScene.ts`
-- `src/data/horses.ts` and `src/data/riderAppearances.ts`
+- `src/ui/DialogueBox.ts`
+- `src/data/dialogue.ts`
 
 ## Contracts to preserve
 
@@ -35,4 +34,4 @@ T007 — First Horse Choice and Appearance State.
 
 ## Current playable state
 
-Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. Move with WASD or arrows; press E near the selected horse to mount, then E again to dismount. The world, obstacles, horse, and rider are still temporary placeholders.
+Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. In the clearing, press E near the Stable Keeper to read the greeting, Enter or Space to close it, and E near the selected horse to mount or dismount. The world and characters remain placeholders.

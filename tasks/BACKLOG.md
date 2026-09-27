@@ -37,7 +37,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 
 ## M4 — Dialogue and quests
 
-- [ ] T008 Reusable interaction/dialogue slice
+- [x] T008 Reusable interaction/dialogue slice
   - agent_tier: standard
   - context_budget: medium
 - [ ] T009 Quest progress for talk, reach, collect, and interact
