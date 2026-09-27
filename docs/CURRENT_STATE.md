@@ -22,6 +22,7 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - The typed “A First Ride” quest tracks talk, reach, collect, and horse interaction objectives in order, with a HUD tracker and completion message. Progress lasts only for the current scene session.
 - Collecting the quest wildflower adds a typed item to the runtime inventory; completing the quest grants one horse apple. A compact HUD line shows item counts. Inventory is not saved.
 - The player can cycle among three typed placeholder outfits with O; each outfit changes the rider marker's outline, which remains visible while mounted and dismounted. Outfit choice is runtime-only.
+- The mounted rider can start the typed Clearing Canter at its marked gate, pass three numbered checkpoints in order, and earn one horse apple on completion. The HUD shows checkpoint progress and elapsed time; race state is runtime-only.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths
@@ -37,4 +38,4 @@ Keep data definitions, serializable state, runtime logic, rendering, and UI dist
 
 ## Known gaps
 
-Production world art, expanded character and horse customization, larger dialogue/quest content, clothing beyond the three placeholder outfits, racing, decoration, Echo sequence, birthday finale, saving/loading, and polish remain unimplemented. The current world, obstacles, and marker are temporary test scaffolding.
+Production world art, expanded character and horse customization, larger dialogue/quest content, clothing beyond the three placeholder outfits, decoration, Echo sequence, birthday finale, saving/loading, and polish remain unimplemented. The current world, obstacles, and marker are temporary test scaffolding.

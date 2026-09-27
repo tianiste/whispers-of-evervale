@@ -1,37 +1,35 @@
-# T011 — Equip and Change a Few Rider Outfits
+# T012 — One Forgiving Checkpoint Race
 
 agent_tier: standard
 context_budget: medium
 
 ## Goal
 
-Let the player switch between a few simple typed outfits and see the selected outfit on the rider.
+Add one short, replayable horseback checkpoint race to the clearing.
 
 ## Acceptance Criteria
 
-- Define three small typed outfit options as content data.
-- The player can cycle/equip outfits during play using a clearly displayed keyboard control.
-- The selected outfit is visually distinguishable from the rider’s base appearance.
-- Outfit appearance stays consistent while mounted and dismounted.
-- Existing rider and horse choices, quest progress, and inventory remain intact.
-- Outfit selection is runtime-only; do not add saving or a full clothing catalog.
+- Define a small typed race route and checkpoint sequence as content data.
+- A mounted player can start the race at a marked start point using a displayed keyboard control.
+- Checkpoints must be passed in order; show the current checkpoint and elapsed time while racing.
+- Finishing shows a result and grants one horse apple through the existing inventory flow.
+- Race state is runtime-only and does not change the first-ride quest flow.
 
 ## Relevant Files
 
 - `src/scenes/WorldScene.ts`
-- `src/data/` for typed outfit options
-- `src/entities/` for the minimal rider placeholder rendering if needed
+- `src/data/` for the race route and checkpoints
 
 ## Allowed Changes
 
-- Add the minimum typed outfit data and primitive rendering needed to show the equipped choice.
-- Reuse existing keyboard input and HUD patterns.
+- Add the minimum race data, marker rendering, timing, HUD, and reward behavior.
+- Reuse mounted movement and the existing inventory.
 
 ## Do Not Implement
 
-- Inventory equipment rules, shops, layered asset pipelines, expanded wardrobe, or persistence.
+- A race catalog, leaderboards, persistence, difficulty settings, or new race systems.
 
 ## Verification
 
 - `npm run build`
-- Launch in Chromium and cycle all outfits, then verify the chosen outfit remains visible before and after mounting/dismounting.
+- Launch in Chromium, start a race while mounted, pass checkpoints in order, and verify the finish result and inventory reward.

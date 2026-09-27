@@ -55,7 +55,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 
 ## M6 — Race
 
-- [ ] T012 One forgiving checkpoint race and result/reward
+- [x] T012 One forgiving checkpoint race and result/reward
   - agent_tier: standard
   - context_budget: medium
 

@@ -7,6 +7,7 @@ import { DialogueBox } from '../ui/DialogueBox';
 import { firstRideQuest, type QuestObjective } from '../data/quests';
 import { items, type ItemId } from '../data/items';
 import { outfits, type OutfitId } from '../data/outfits';
+import { clearingRace } from '../data/race';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -31,12 +32,17 @@ export class WorldScene extends Phaser.Scene {
   private inventory = new Map<ItemId, number>();
   private inventoryText!: Phaser.GameObjects.Text;
   private outfitText!: Phaser.GameObjects.Text;
+  private raceText!: Phaser.GameObjects.Text;
   private wildflower!: Phaser.GameObjects.Arc;
   private wildflowerLabel!: Phaser.GameObjects.Text;
   private dialogueBox!: DialogueBox;
   private dialogueContinueKeys!: { enter: Phaser.Input.Keyboard.Key; space: Phaser.Input.Keyboard.Key };
   private interactionKey!: Phaser.Input.Keyboard.Key;
   private outfitKey!: Phaser.Input.Keyboard.Key;
+  private raceKey!: Phaser.Input.Keyboard.Key;
+  private raceCheckpointIndex: number | null = null;
+  private raceStartedAt = 0;
+  private raceLastDisplay = -1;
   private obstacles: { x: number; y: number; radius: number }[] = [];
   private movementKeys!: {
     up: Phaser.Input.Keyboard.Key;
@@ -58,6 +64,8 @@ export class WorldScene extends Phaser.Scene {
     this.horseId = getHorse(data.horseId).id;
     this.outfitId = outfits[0].id;
     this.questIndex = 0;
+    this.raceCheckpointIndex = null;
+    this.raceLastDisplay = -1;
     this.inventory.clear();
   }
 
@@ -94,6 +102,19 @@ export class WorldScene extends Phaser.Scene {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
     }).setOrigin(0.5);
+    this.add.circle(clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius, 0xc8b77b, 0.18)
+      .setStrokeStyle(3, 0xf4e9cf);
+    this.add.text(clearingRace.start.x, clearingRace.start.y - clearingRace.start.radius - 18, 'Race Start · R', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+      backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
+    }).setOrigin(0.5);
+    clearingRace.checkpoints.forEach((checkpoint, index) => {
+      this.add.circle(checkpoint.x, checkpoint.y, checkpoint.radius, 0x8baf82, 0.2)
+        .setStrokeStyle(3, 0xf4e9cf);
+      this.add.text(checkpoint.x, checkpoint.y, String(index + 1), {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '18px',
+      }).setOrigin(0.5);
+    });
     const marker = firstRideQuest.objectives[1];
     if (marker?.type === 'reach') {
       this.add.circle(marker.x, marker.y, 24, 0xc8b77b, 0.35).setStrokeStyle(3, 0xf4e9cf);
@@ -134,6 +155,7 @@ export class WorldScene extends Phaser.Scene {
     this.input.keyboard!.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT');
     this.interactionKey = this.input.keyboard!.addKey('E');
     this.outfitKey = this.input.keyboard!.addKey('O');
+    this.raceKey = this.input.keyboard!.addKey('R');
     this.dialogueContinueKeys = this.input.keyboard!.addKeys({ enter: 'ENTER', space: 'SPACE' }) as typeof this.dialogueContinueKeys;
     this.input.keyboard!.addCapture('E');
 
@@ -142,7 +164,7 @@ export class WorldScene extends Phaser.Scene {
       .startFollow(this.player, true, 0.12, 0.12);
 
     this.add
-      .text(16, 16, 'Move: WASD / arrows   Talk / mount / dismount: E   Change outfit: O', {
+      .text(16, 16, 'Move: WASD / arrows   Talk / mount / dismount: E   Outfit: O   Race: R at gate', {
         color: '#f4e9cf',
         fontFamily: 'Arial, sans-serif',
         fontSize: '16px',
@@ -159,6 +181,10 @@ export class WorldScene extends Phaser.Scene {
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
     }).setScrollFactor(0);
     this.outfitText = this.add.text(16, 127, '', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+      backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
+    }).setScrollFactor(0);
+    this.raceText = this.add.text(16, 163, `${clearingRace.name}: Mount up and press R at the start`, {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
     }).setScrollFactor(0);
@@ -182,6 +208,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.outfitKey)) this.cycleOutfit();
+    if (Phaser.Input.Keyboard.JustDown(this.raceKey)) this.tryStartRace();
 
     const up = this.movementKeys.up.isDown || this.movementKeys.upArrow.isDown;
     const down = this.movementKeys.down.isDown || this.movementKeys.downArrow.isDown;
@@ -220,6 +247,7 @@ export class WorldScene extends Phaser.Scene {
     const body = this.mounted ? this.horseBody : this.playerBody;
     body.setVelocity(x * PLAYER_SPEED, y * PLAYER_SPEED);
     if (this.mounted) this.player.setPosition(this.horse.display.x, this.horse.display.y - 35);
+    this.updateRace();
   }
 
   private isNear(x: number, y: number, targetX: number, targetY: number, range: number): boolean {
@@ -260,6 +288,44 @@ export class WorldScene extends Phaser.Scene {
     this.updateOutfitText();
   }
 
+  private tryStartRace(): void {
+    if (!this.mounted || this.raceCheckpointIndex !== null ||
+      !this.isNear(this.horse.display.x, this.horse.display.y, clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius)) return;
+
+    this.raceCheckpointIndex = 0;
+    this.raceStartedAt = this.time.now;
+    this.raceLastDisplay = -1;
+    this.raceText.setText(`${clearingRace.name}: Checkpoint 1/${clearingRace.checkpoints.length}`);
+  }
+
+  private updateRace(): void {
+    if (this.raceCheckpointIndex === null) return;
+
+    if (!this.mounted) {
+      this.raceCheckpointIndex = null;
+      this.raceText.setText(`${clearingRace.name}: Cancelled — mount up and return to the start`);
+      return;
+    }
+
+    const checkpoint = clearingRace.checkpoints[this.raceCheckpointIndex];
+    if (checkpoint && this.isNear(this.horse.display.x, this.horse.display.y, checkpoint.x, checkpoint.y, checkpoint.radius)) {
+      this.raceCheckpointIndex += 1;
+      if (this.raceCheckpointIndex === clearingRace.checkpoints.length) {
+        const seconds = (this.time.now - this.raceStartedAt) / 1000;
+        this.raceCheckpointIndex = null;
+        this.raceText.setText(`${clearingRace.name}: Finished in ${seconds.toFixed(1)}s! Horse Apple earned.`);
+        this.addItem(clearingRace.reward);
+        return;
+      }
+    }
+
+    const tenths = Math.floor((this.time.now - this.raceStartedAt) / 100);
+    if (tenths !== this.raceLastDisplay) {
+      this.raceLastDisplay = tenths;
+      this.raceText.setText(`${clearingRace.name}: Checkpoint ${this.raceCheckpointIndex + 1}/${clearingRace.checkpoints.length} · ${(tenths / 10).toFixed(1)}s`);
+    }
+  }
+
   private updateOutfitText(): void {
     const outfit = outfits.find(({ id }) => id === this.outfitId) ?? outfits[0];
     this.outfitText.setText(`Outfit: ${outfit.name} (O)`);
@@ -289,6 +355,10 @@ export class WorldScene extends Phaser.Scene {
     if (!spot) return;
 
     this.mounted = false;
+    if (this.raceCheckpointIndex !== null) {
+      this.raceCheckpointIndex = null;
+      this.raceText.setText(`${clearingRace.name}: Cancelled — mount up and return to the start`);
+    }
     this.player.setPosition(spot.x, spot.y);
     this.playerBody.reset(spot.x, spot.y);
     this.playerBody.setVelocity(0, 0);
