@@ -15,7 +15,7 @@ T005 — Mount, Ride, and Dismount Controls.
 ## Verification
 
 - `npm run build` passed. Vite printed its existing large-bundle advisory.
-- Chromium verified approaching, mounting, mounted movement, dismounting beside the horse, remounting, and movement stopping at an obstacle.
+- Chromium verified approaching, mounting, mounted movement, dismounting beside the horse, remounting, and movement stopping at an obstacle and the world edge.
 - `git diff --check` passed.
 
 ## Current playable state
