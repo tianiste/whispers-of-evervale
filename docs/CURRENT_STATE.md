@@ -28,6 +28,7 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - A marked dirt lane connects the stable clearing to a compact village with two placeholder buildings, two typed villagers using the dialogue box, and two fixed-position cat cameos.
 - Completing “A First Ride” unlocks the short “A Familiar Echo” quest: the Stable Keeper and Trail Guide reveal clues in order, leading to an old oak and Hana’s editable birthday note signed by Tian. It grants one horse apple, then returns to free roam after the note closes.
 - Version 1 local saves restore the current slice state, including selections, player/horse positions and mount state, quest progress, inventory, outfit, decorations, active/completed race state, and open dialogue. Invalid or unsupported data is discarded and starts a new game through the character creator.
+- The fixed 960×540 canvas scales with Phaser FIT in desktop browser windows; keyboard guidance and status HUD stay pinned above world objects.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths

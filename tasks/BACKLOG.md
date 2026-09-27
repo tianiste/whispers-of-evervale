@@ -91,7 +91,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 - [x] T019 Pixel-art lighting/ambience, animation, and audio polish
   - agent_tier: standard
   - context_budget: medium
-- [ ] T020 Desktop browser fit, usability, and release build pass
+- [x] T020 Desktop browser fit, usability, and release build pass
   - agent_tier: standard
   - context_budget: medium
 

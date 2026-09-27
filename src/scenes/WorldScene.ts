@@ -235,27 +235,28 @@ export class WorldScene extends Phaser.Scene {
         backgroundColor: '#173b36cc',
         padding: { x: 10, y: 8 },
       })
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(10);
     this.questText = this.add.text(16, 54, '', {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '15px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 7 },
-    }).setScrollFactor(0);
+    }).setScrollFactor(0).setDepth(10);
     this.inventoryText = this.add.text(16, 91, '', {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
-    }).setScrollFactor(0);
+    }).setScrollFactor(0).setDepth(10);
     this.outfitText = this.add.text(16, 127, '', {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
-    }).setScrollFactor(0);
+    }).setScrollFactor(0).setDepth(10);
     this.raceText = this.add.text(16, 163, `${clearingRace.name}: Mount up and press R at the start`, {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
-    }).setScrollFactor(0);
+    }).setScrollFactor(0).setDepth(10);
     this.add.text(16, 199, 'Stable decorations: 1 Window   2 Door   3 Sign', {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
-    }).setScrollFactor(0);
+    }).setScrollFactor(0).setDepth(10);
     this.updateOutfitText();
     this.updateQuestText();
     this.updateInventoryText();
