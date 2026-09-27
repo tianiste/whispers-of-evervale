@@ -6,7 +6,7 @@ M0 — first playable loop. October 1 is the target for a polished, small birthd
 
 ## Stack and playable state
 
-Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm run dev` starts Vite. Runtime initializes Phaser, enters `BootScene`, then `MainMenuScene`; Enter opens `WorldScene` at 960×540.
+Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm run dev` starts Vite. Runtime initializes Phaser, enters `BootScene`, then `MainMenuScene`; Enter opens `CharacterCreatorScene`, where the player selects a rider appearance before entering `WorldScene` at 960×540.
 
 ## Implemented
 
@@ -17,6 +17,7 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - `WorldScene` has a temporary 1800×1100 gridded test area, a keyboard-controlled marker, normalized WASD/arrow movement at 220 px/s, four circular solid obstacles, Arcade Physics world-edge bounds, and a camera that follows within world bounds.
 - The clearing includes a stationary brown Quarter Horse placeholder. Its typed definition is in `src/data/horses.ts`; `HorseEntity` draws it with Phaser primitives.
 - The player can mount the first horse with E within interaction range, ride with WASD/arrows, and dismount into a nearby clear spot. Horse and player collide with clearing obstacles and world bounds; the camera follows the mounted rider.
+- The character creator offers three typed placeholder rider colors with a live preview. The confirmed appearance is passed into the clearing and stays on the rider while mounting and dismounting.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths

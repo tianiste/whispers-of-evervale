@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { HorseEntity } from '../entities/HorseEntity';
 import { firstHorse } from '../data/horses';
+import { getRiderAppearance, type RiderAppearanceId } from '../data/riderAppearances';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -10,6 +11,7 @@ const HORSE_RADIUS = 25;
 const INTERACTION_RANGE = 70;
 
 export class WorldScene extends Phaser.Scene {
+  private appearanceId: RiderAppearanceId = 'cream';
   private player!: Phaser.GameObjects.Arc;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private horse!: HorseEntity;
@@ -32,6 +34,10 @@ export class WorldScene extends Phaser.Scene {
     super('World');
   }
 
+  init(data: { appearanceId?: RiderAppearanceId }): void {
+    this.appearanceId = getRiderAppearance(data.appearanceId).id;
+  }
+
   create(): void {
     const ground = this.add.graphics();
     ground.fillStyle(0x31594a);
@@ -49,7 +55,7 @@ export class WorldScene extends Phaser.Scene {
     ground.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    this.player = this.add.circle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, PLAYER_RADIUS, 0xf4e9cf);
+    this.player = this.add.circle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, PLAYER_RADIUS, getRiderAppearance(this.appearanceId).color);
     this.player.setStrokeStyle(3, 0x173b36);
     this.physics.add.existing(this.player);
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;

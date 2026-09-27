@@ -28,7 +28,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 
 ## M3 — Character and horse selection
 
-- [ ] T006 Character creator with a small polished option set
+- [x] T006 Character creator with a small polished option set
   - agent_tier: standard
   - context_budget: small
 - [ ] T007 First-horse selection and appearance state
