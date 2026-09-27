@@ -104,3 +104,6 @@ canvas {
   .game-dialog[open] { animation: none; }
   .game-ui *, .game-dialog * { transition: none !important; }
 }
+.race-countdown { position: absolute; top: 40%; left: 0; width: 100%; text-align: center; font: bold 96px/1 Georgia, serif; color: var(--cream); text-shadow: 0 4px 0 #183b34; }
+.modal-open .race-countdown { visibility: hidden; }
+.game-dialog .inline-feedback { color: var(--teal); margin: 16px 0 0; white-space: pre-line; }

@@ -7,6 +7,7 @@ export class GameUI {
   private readonly quest = document.createElement('div');
   private readonly prompt = document.createElement('div');
   private readonly race = document.createElement('div');
+  private readonly countdown = document.createElement('div');
   private readonly toast = document.createElement('div');
   private toastTimer = 0;
   private onClose: (() => void) | undefined;
@@ -18,18 +19,28 @@ export class GameUI {
     this.prompt.className = 'interaction hud-panel';
     this.race.className = 'race-hud hud-panel';
     this.toast.className = 'reward-toast';
+    this.countdown.className = 'race-countdown';
+    this.countdown.setAttribute('role', 'status');
     this.toast.setAttribute('role', 'status');
     this.quest.setAttribute('aria-live', 'polite');
     const menu = document.createElement('button');
     menu.className = 'menu-toggle';
     menu.textContent = 'Menu · Esc';
     menu.onclick = () => openMenu('pause');
-    this.root.append(this.quest, this.prompt, this.race, menu, this.toast);
+    this.root.append(this.quest, this.prompt, this.race, menu, this.toast, this.countdown);
     this.dialog.className = 'game-dialog';
     this.dialog.setAttribute('aria-labelledby', 'window-title');
     this.dialog.addEventListener('cancel', (event) => { event.preventDefault(); this.close(); });
     // Stop game keys at the dialog; retain native Tab, Enter, Space and Escape behavior.
-    this.dialog.addEventListener('keydown', (event) => event.stopPropagation());
+    this.dialog.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+      if (event.key !== 'Tab') return;
+      const controls = this.dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)');
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    });
     this.dialog.addEventListener('keyup', (event) => event.stopPropagation());
     document.body.append(this.root, this.dialog);
     window.addEventListener('keydown', this.handleShortcut);
@@ -69,6 +80,8 @@ export class GameUI {
     const button = this.dialog.querySelector<HTMLButtonElement>(`#${id}`);
     if (button) button.onclick = action;
   }
+
+  setCountdown(text: string): void { this.countdown.textContent = text; this.countdown.hidden = !text; }
 
   setQuest(text: string): void { if (this.quest.textContent !== text) this.quest.textContent = text; }
   setPrompt(text: string): void { this.prompt.textContent = text; this.prompt.hidden = !text; }

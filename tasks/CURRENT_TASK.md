@@ -3,6 +3,8 @@
 agent_tier: orchestrator
 context_budget: medium
 
+Status: complete after final validation; awaiting user acceptance. Do not advance the backlog.
+
 ## Goal
 Make the existing birthday slice feel intentional through a minimal HUD, dedicated management windows, contextual feedback, race presentation, and responsive riding/camera feel.
 

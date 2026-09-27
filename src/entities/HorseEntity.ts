@@ -2,15 +2,27 @@ import Phaser from 'phaser';
 import type { HorseDefinition } from '../data/horses';
 
 export class HorseEntity {
+  private facing = 1;
+  private definition: HorseDefinition;
   readonly display: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, definition: HorseDefinition, x: number, y: number) {
+    this.definition = definition;
     this.display = scene.add.graphics().setPosition(x, y);
     this.setDefinition(definition);
   }
 
+  setFacing(horizontal: number): void {
+    if (Math.abs(horizontal) < 0.1 || Math.sign(horizontal) === this.facing) return;
+    this.facing = Math.sign(horizontal);
+    this.setDefinition(this.definition);
+  }
+
   setDefinition(definition: HorseDefinition): void {
+    this.definition = definition;
     const horse = this.display.clear();
+    horse.save();
+    horse.scaleCanvas(this.facing, 1);
     const darkCoat = Phaser.Display.Color.ValueToColor(definition.coatColor).darken(35).color;
 
     horse.fillStyle(darkCoat);
@@ -29,5 +41,6 @@ export class HorseEntity {
     horse.fillTriangle(8, -13, 25, -39, 31, -16);
     horse.fillTriangle(39, -47, 40, -53, 44, -42);
     horse.fillEllipse(-28, -3, 20, 9);
+    horse.restore();
   }
 }
