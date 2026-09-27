@@ -24,6 +24,7 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - The player can cycle among three typed placeholder outfits with O; each outfit changes the rider marker's outline, which remains visible while mounted and dismounted. Outfit choice is runtime-only.
 - The mounted rider can start the typed Clearing Canter at its marked gate, pass three numbered checkpoints in order, and earn one horse apple on completion. The HUD shows checkpoint progress and elapsed time; race state is runtime-only.
 - Three typed stable decoration slots each cycle through flower box, lantern, and wreath options with number keys. The stable display updates immediately; selections last for the current game session and reset on restart until versioned saves are implemented.
+- A marked dirt lane connects the stable clearing to a compact village with two placeholder buildings, two typed villagers using the dialogue box, and two fixed-position cat cameos.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths

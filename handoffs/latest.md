@@ -2,16 +2,16 @@
 
 ## Task completed
 
-T013 — A Few Stable Decoration Slots with Session Selections.
+T014 — Sunmeadow to Village Route, NPCs, and Recurring Cats.
 
 ## Implementation and verification
 
-- Added three typed stable decoration slots and three options. Keys 1, 2, and 3 cycle Window, Door, and Sign selections; the stable rendering updates immediately and selections last for the current game session.
-- `npm run build` and `git diff --check` passed. Chromium verified all slots change and remain selected after moving away from and back to the stable. Vite printed its existing large-bundle advisory.
+- Added a marked dirt lane, two placeholder buildings, two typed villagers using the shared dialogue box, and two fixed cat cameos.
+- `npm run build` and `git diff --check` passed. Chromium verified the route, Village Baker dialogue, both cats, and the Stable Keeper dialogue after returning. Vite printed its existing large-bundle advisory; headless Chromium also emitted software-WebGL warnings and a missing favicon 404.
 
-## Current task — T014
+## Current blocker — T015
 
-T013 added three stable slots with session-only selections. Keys 1, 2, and 3 change Window, Door, and Sign decorations; T017 owns durable saving. Build passed; Chromium showed updated selections after leaving and returning to the stable. The existing Vite bundle-size advisory remains.
+`docs/PERSONALIZATION.md` says not to invent the final message or developer name. Neither value is provided, so T015 cannot be completed without those personal content values. Recipient Hana is known and the optional nickname can remain empty.
 
 ## Current playable state
 

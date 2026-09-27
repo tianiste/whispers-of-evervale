@@ -9,6 +9,7 @@ import { items, type ItemId } from '../data/items';
 import { outfits, type OutfitId } from '../data/outfits';
 import { clearingRace } from '../data/race';
 import { decorations, stableDecorationSlots, type StableDecorationSlotId } from '../data/decorations';
+import { villageBuildings, villageCats, villageRoute, villagers } from '../data/village';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -88,6 +89,7 @@ export class WorldScene extends Phaser.Scene {
 
     ground.lineStyle(4, 0xc8b77b, 1);
     ground.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    this.renderVillage();
 
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.player = this.add.circle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, PLAYER_RADIUS, getRiderAppearance(this.appearanceId).color);
@@ -246,6 +248,7 @@ export class WorldScene extends Phaser.Scene {
         this.advanceQuest('talk', 'stable-keeper');
         this.dialogueBox.show(stableKeeperGreeting);
       }
+      else if (this.talkToNearbyVillager()) {}
       else if (this.wildflower?.active && this.isNear(this.player.x, this.player.y, this.wildflower.x, this.wildflower.y, QUEST_INTERACTION_RANGE)) {
         this.wildflower.destroy();
         this.wildflowerLabel.destroy();
@@ -267,6 +270,57 @@ export class WorldScene extends Phaser.Scene {
 
   private isNear(x: number, y: number, targetX: number, targetY: number, range: number): boolean {
     return Phaser.Math.Distance.Between(x, y, targetX, targetY) <= range;
+  }
+
+  private talkToNearbyVillager(): boolean {
+    const villager = villagers.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, INTERACTION_RANGE));
+    if (!villager) return false;
+    this.dialogueBox.show(villager.dialogue);
+    return true;
+  }
+
+  private renderVillage(): void {
+    const path = this.add.graphics();
+    path.lineStyle(24, 0xb59a68, 0.8);
+    for (let index = 1; index < villageRoute.length; index += 1) {
+      const from = villageRoute[index - 1]!;
+      const to = villageRoute[index]!;
+      path.lineBetween(from.x, from.y, to.x, to.y);
+    }
+
+    for (const building of villageBuildings) {
+      this.add.rectangle(building.x, building.y, building.width, building.height, building.wallColor)
+        .setStrokeStyle(3, 0x493f33);
+      this.add.triangle(
+        building.x,
+        building.y - building.height / 2 - 17,
+        -building.width / 2 - 8, 17,
+        0, -17,
+        building.width / 2 + 8, 17,
+        building.roofColor,
+      );
+      this.add.text(building.x, building.y + building.height / 2 + 8, building.name, {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '12px',
+        backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
+      }).setOrigin(0.5);
+    }
+
+    for (const villager of villagers) {
+      this.add.circle(villager.x, villager.y, 15, villager.color).setStrokeStyle(3, 0xc8b77b);
+      this.add.text(villager.x, villager.y - 26, villager.name, {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '12px',
+        backgroundColor: '#173b36cc', padding: { x: 4, y: 2 },
+      }).setOrigin(0.5);
+    }
+
+    for (const cat of villageCats) {
+      this.add.circle(cat.x, cat.y, 10, cat.color).setStrokeStyle(2, 0x493f33);
+      this.add.circle(cat.x + 9, cat.y - 5, 7, cat.color).setStrokeStyle(2, 0x493f33);
+      this.add.text(cat.x, cat.y - 23, cat.name, {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '11px',
+        backgroundColor: '#173b36cc', padding: { x: 4, y: 2 },
+      }).setOrigin(0.5);
+    }
   }
 
   private checkReachObjective(): void {
