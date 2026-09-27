@@ -55,6 +55,7 @@ export class WorldScene extends Phaser.Scene {
   private raceResultText = '';
   private activeDialogueId: SavedDialogueId | null = null;
   private restoreSave: GameSave | null = null;
+  private ambience!: Phaser.Sound.BaseSound;
   private nextAutosaveAt = 0;
   private obstacles: { x: number; y: number; radius: number }[] = [];
   private movementKeys!: {
@@ -131,6 +132,16 @@ export class WorldScene extends Phaser.Scene {
     this.horseBody = this.horse.display.body as Phaser.Physics.Arcade.Body;
     this.horseBody.setCircle(HORSE_RADIUS).setCollideWorldBounds(true);
     if (this.mounted) this.player.setPosition(this.horse.display.x, this.horse.display.y - 35);
+
+    this.tweens.add({ targets: this.horse.display, scaleY: 1.035, duration: 1100, ease: 'Sine.InOut', yoyo: true, repeat: -1 });
+    for (const [x, y] of [[WORLD_WIDTH / 2 - 130, WORLD_HEIGHT / 2 - 75], [WORLD_WIDTH / 2 + 115, WORLD_HEIGHT / 2 - 40], [WORLD_WIDTH / 2 + 165, WORLD_HEIGHT / 2 + 90]] as const) {
+      const firefly = this.add.circle(x, y, 2, 0xf4e9cf, 0.35).setDepth(3);
+      this.tweens.add({
+        targets: firefly, alpha: 0.9, scale: 1.5, y: y - 9,
+        duration: Phaser.Math.Between(1500, 2400), ease: 'Sine.InOut', yoyo: true, repeat: -1,
+        delay: Phaser.Math.Between(0, 900),
+      });
+    }
 
     this.add.circle(KEEPER_POSITION.x, KEEPER_POSITION.y, 18, 0x8baf82).setStrokeStyle(3, 0xc8b77b);
     this.add.text(KEEPER_POSITION.x, KEEPER_POSITION.y - 32, 'Stable Keeper', {
@@ -249,6 +260,8 @@ export class WorldScene extends Phaser.Scene {
     this.updateQuestText();
     this.updateInventoryText();
     this.dialogueBox = new DialogueBox(this);
+    this.ambience = this.sound.add('sunmeadow-ambience', { loop: true, volume: 0.12 });
+    this.ambience.play();
     if (this.raceCheckpointIndex !== null) {
       this.raceStartedAt = this.time.now - this.raceElapsedMs;
       this.raceText.setText(`${clearingRace.name}: Checkpoint ${this.raceCheckpointIndex + 1}/${clearingRace.checkpoints.length} · ${(this.raceElapsedMs / 1000).toFixed(1)}s`);
@@ -258,7 +271,10 @@ export class WorldScene extends Phaser.Scene {
     if (this.activeDialogueId) this.dialogueBox.show(this.getDialogue(this.activeDialogueId));
     this.nextAutosaveAt = this.time.now + 1000;
     window.addEventListener('pagehide', this.handlePageHide);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => window.removeEventListener('pagehide', this.handlePageHide));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener('pagehide', this.handlePageHide);
+      this.ambience.stop();
+    });
     this.persistGame();
   }
 

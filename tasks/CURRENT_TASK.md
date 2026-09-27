@@ -1,33 +1,34 @@
-# T019 — Birthday Slice Atmosphere Polish
+# T020 — Desktop Browser Fit, Usability, and Release Build Pass
 
 agent_tier: standard
 context_budget: medium
 
 ## Goal
 
-Add a restrained atmosphere pass to the existing stable clearing using the established pixel-art direction: subtle ambience, a small idle animation, and quiet environmental audio.
+Make the birthday slice comfortable to play in a desktop browser and confirm it can be built for release.
 
 ## Acceptance Criteria
 
-- The clearing has a subtle ambient visual effect and an idle motion cue that fit the documented style.
-- Environmental audio is quiet, loops cleanly, and does not interfere with interaction or race feedback.
-- Existing controls, quest progression, saving, and race behavior remain unchanged.
-- No new dependency is added unless the current platform cannot provide the needed behavior.
+- The 960×540 game canvas fits common desktop browser windows without clipping essential controls or HUD.
+- Keyboard instructions and core interactions are understandable and usable.
+- Production build completes and the built page starts without browser errors.
+- No gameplay, quest, save, or art scope expansion.
 
 ## Relevant Files
 
-- `src/scenes/WorldScene.ts`
-- `src/data/` and `public/assets/` for any required content
+- `src/config/gameConfig.ts`
+- `src/style.css`
+- `src/scenes/`
 
 ## Allowed Changes
 
-- Add only the small visual and audio assets or runtime behavior needed for this atmosphere pass.
+- Focused scaling, layout, accessibility, or browser startup fixes needed for the acceptance criteria.
 
 ## Do Not Implement
 
-- New regions, systems, or broad art replacement.
+- New regions, systems, content, or broad visual redesign.
 
 ## Verification
 
 - `npm run build`
-- In Chromium, verify the ambience, idle motion, audio playback, and existing gameplay controls.
+- In Chromium, inspect the release build at common desktop viewport sizes and exercise the basic keyboard flow.
