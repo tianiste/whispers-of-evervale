@@ -2,18 +2,18 @@
 
 ## Task completed
 
-T006 — Character Creator: Small Playable Option Set.
+T007 — First Horse Choice and Appearance State.
 
 ## Implementation
 
-- Enter from the main menu opens `CharacterCreatorScene`.
-- Arrow keys cycle three typed placeholder appearances (Cream, Chestnut, Midnight) with a live Phaser circle preview; Enter confirms.
-- The chosen appearance ID is handed to `WorldScene`, which uses its color for the player circle. Since the same circle remains the mounted rider, appearance stays consistent through mounting and dismounting.
+- Character creation now previews rider options with left/right and first-horse options with up/down.
+- Three typed horses (Maple the Quarter Horse, Silver the Mustang, and Raven the Friesian) use the existing primitive renderer.
+- Enter passes both IDs to `WorldScene`; the selected horse and rider appearance persist during mount/dismount.
 
 ## Verification
 
 - `npm run build` passed. Vite printed its existing large-bundle advisory.
-- Chromium verified changing through the appearance options, confirming into the clearing, and seeing Chestnut before mounting, while mounted, and after dismounting.
+- Chromium verified cycling all three horse options, confirming Raven into the clearing, and seeing Raven while unmounted, mounted, and dismounted.
 - `git diff --check` passed.
 
 ## Known issues and blocker
@@ -24,18 +24,15 @@ T006 — Character Creator: Small Playable Option Set.
 ## Relevant next files
 
 - `src/scenes/CharacterCreatorScene.ts`
+- `src/entities/HorseEntity.ts`
 - `src/scenes/WorldScene.ts`
-- `src/data/riderAppearances.ts`
+- `src/data/horses.ts` and `src/data/riderAppearances.ts`
 
 ## Contracts to preserve
 
 - Keep the birthday vertical slice small; separate typed content data from runtime behavior.
 - Keep appearance consistent while mounting and dismounting; use existing Phaser primitives.
 
-## Next task
-
-- T006 — Character Creator: Small Playable Option Set (current task).
-
 ## Current playable state
 
-Press Enter at the menu, choose a rider appearance with the arrows, and confirm with Enter. Move with WASD or arrows; press E near the brown Quarter Horse to mount, then E again to dismount. The world, obstacles, horse, and rider are still temporary placeholders.
+Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. Move with WASD or arrows; press E near the selected horse to mount, then E again to dismount. The world, obstacles, horse, and rider are still temporary placeholders.

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { HorseEntity } from '../entities/HorseEntity';
-import { firstHorse } from '../data/horses';
+import { getHorse, type HorseId } from '../data/horses';
 import { getRiderAppearance, type RiderAppearanceId } from '../data/riderAppearances';
 
 const WORLD_WIDTH = 1800;
@@ -12,6 +12,7 @@ const INTERACTION_RANGE = 70;
 
 export class WorldScene extends Phaser.Scene {
   private appearanceId: RiderAppearanceId = 'cream';
+  private horseId: HorseId = 'brown-quarter-horse';
   private player!: Phaser.GameObjects.Arc;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private horse!: HorseEntity;
@@ -34,8 +35,9 @@ export class WorldScene extends Phaser.Scene {
     super('World');
   }
 
-  init(data: { appearanceId?: RiderAppearanceId }): void {
+  init(data: { appearanceId?: RiderAppearanceId; horseId?: HorseId }): void {
     this.appearanceId = getRiderAppearance(data.appearanceId).id;
+    this.horseId = getHorse(data.horseId).id;
   }
 
   create(): void {
@@ -61,7 +63,7 @@ export class WorldScene extends Phaser.Scene {
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerBody.setCircle(PLAYER_RADIUS).setCollideWorldBounds(true);
 
-    this.horse = new HorseEntity(this, firstHorse, WORLD_WIDTH / 2 + 75, WORLD_HEIGHT / 2 + 100);
+    this.horse = new HorseEntity(this, getHorse(this.horseId), WORLD_WIDTH / 2 + 75, WORLD_HEIGHT / 2 + 100);
     this.physics.add.existing(this.horse.display);
     this.horseBody = this.horse.display.body as Phaser.Physics.Arcade.Body;
     this.horseBody.setCircle(HORSE_RADIUS).setCollideWorldBounds(true);

@@ -31,7 +31,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 - [x] T006 Character creator with a small polished option set
   - agent_tier: standard
   - context_budget: small
-- [ ] T007 First-horse selection and appearance state
+- [x] T007 First-horse selection and appearance state
   - agent_tier: standard
   - context_budget: small
 

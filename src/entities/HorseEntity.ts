@@ -5,7 +5,12 @@ export class HorseEntity {
   readonly display: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, definition: HorseDefinition, x: number, y: number) {
-    const horse = (this.display = scene.add.graphics().setPosition(x, y));
+    this.display = scene.add.graphics().setPosition(x, y);
+    this.setDefinition(definition);
+  }
+
+  setDefinition(definition: HorseDefinition): void {
+    const horse = this.display.clear();
     const darkCoat = Phaser.Display.Color.ValueToColor(definition.coatColor).darken(35).color;
 
     horse.fillStyle(darkCoat);
