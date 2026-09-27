@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { renderEnvironment, addTree } from '../art/Environment';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../config/world';
 import { HorseEntity } from '../entities/HorseEntity';
 import { getHorse, type HorseId } from '../data/horses';
@@ -11,7 +12,7 @@ import { items, type ItemId } from '../data/items';
 import { outfits, type OutfitId } from '../data/outfits';
 import { clearingRace } from '../data/race';
 import { decorations, stableDecorationSlots, type StableDecorationSlotId } from '../data/decorations';
-import { villageBuildings, villageCats, villageRoute, villagers } from '../data/village';
+import { villageCats, villagers } from '../data/village';
 import { SAVE_VERSION, storeGameSave, type GameSave, type SavedDialogueId } from '../data/save';
 
 const PLAYER_RADIUS = 14;
@@ -28,7 +29,9 @@ export class WorldScene extends Phaser.Scene {
   private countdownNumber = 0;
   private checkpointMarkers: Phaser.GameObjects.Container[] = [];
   private cameraTarget!: Phaser.GameObjects.Zone;
-  private facingDot!: Phaser.GameObjects.Arc;
+  private playerArt!: Phaser.GameObjects.Image;
+  private playerShadow!: Phaser.GameObjects.Ellipse;
+  private riderDirection = 0;
   private nextDustAt = 0;
   private wardrobeCategory: 'outfits' | 'rider' = 'outfits';
   private horseCategory: 'horse' | 'tack' | 'stable' = 'horse';
@@ -107,11 +110,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(): void {
-    const ground = this.add.graphics();
-    ground.fillStyle(0x31594a);
-    ground.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    ground.lineStyle(4, 0xc8b77b, 1);
-    ground.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    renderEnvironment(this);
     this.renderVillage();
 
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -119,12 +118,13 @@ export class WorldScene extends Phaser.Scene {
     const playerX = save?.player.x ?? WORLD_WIDTH / 2;
     const playerY = save?.player.y ?? WORLD_HEIGHT / 2;
     this.player = this.add.circle(playerX, playerY, PLAYER_RADIUS, getRiderAppearance(this.appearanceId).color);
-    this.player.setStrokeStyle(3, 0x173b36);
+    this.player.setVisible(false);
     this.physics.add.existing(this.player);
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerBody.setCircle(PLAYER_RADIUS).setCollideWorldBounds(true);
     this.playerBody.enable = !this.mounted;
-    this.facingDot = this.add.circle(playerX + 7, playerY, 3, 0x173b36).setDepth(5);
+    this.playerShadow = this.add.ellipse(playerX, playerY + 12, 27, 10, 0x203b32, 0.3);
+    this.playerArt = this.add.image(playerX, playerY + 16, 'riders').setOrigin(0.5, 1).setScale(1.25);
 
     this.horse = new HorseEntity(this, getHorse(this.horseId), save?.horse.x ?? WORLD_WIDTH / 2 + 75, save?.horse.y ?? WORLD_HEIGHT / 2 + 100);
     this.physics.add.existing(this.horse.display);
@@ -141,25 +141,23 @@ export class WorldScene extends Phaser.Scene {
       });
     }
 
-    this.add.circle(KEEPER_POSITION.x, KEEPER_POSITION.y, 18, 0x8baf82).setStrokeStyle(3, 0xc8b77b);
-    this.add.text(KEEPER_POSITION.x, KEEPER_POSITION.y - 32, 'Stable Keeper', {
+    this.add.image(KEEPER_POSITION.x, KEEPER_POSITION.y + 16, 'riders', 24).setOrigin(0.5, 1).setScale(1.25).setDepth(KEEPER_POSITION.y + 16);
+    this.add.text(KEEPER_POSITION.x, KEEPER_POSITION.y - 51, 'Stable Keeper', {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
-    }).setOrigin(0.5);
-    this.add.rectangle(KEEPER_POSITION.x, KEEPER_POSITION.y + 90, 230, 64, 0x725137)
-      .setStrokeStyle(4, 0xc8b77b);
+    }).setOrigin(0.5).setDepth(2000);
     this.renderStableDecorations();
     this.add.circle(clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius, 0xc8b77b, 0.18)
       .setStrokeStyle(3, 0xf4e9cf);
     this.add.text(clearingRace.start.x, clearingRace.start.y - clearingRace.start.radius - 18, 'Clearing Canter', {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(2000);
     clearingRace.checkpoints.forEach((checkpoint, index) => {
       const ring = this.add.circle(0, 0, checkpoint.radius, 0x8cd4bf, 0.16).setStrokeStyle(3, 0x8cd4bf);
       const label = this.add.text(0, 0, String(index + 1), {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '24px',
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(2000);
       this.checkpointMarkers.push(this.add.container(checkpoint.x, checkpoint.y, [ring, label]).setVisible(false));
     });
     const marker = firstRideQuest.objectives[1];
@@ -173,7 +171,7 @@ export class WorldScene extends Phaser.Scene {
       this.wildflowerLabel = this.add.text(flower.x, flower.y - 22, 'Wildflower', {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
         backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(2000);
       if ((this.inventory.get('wildflower') ?? 0) > 0) {
         this.wildflower.destroy();
         this.wildflowerLabel.destroy();
@@ -181,7 +179,15 @@ export class WorldScene extends Phaser.Scene {
     }
     const echoMarker = echoQuest.objectives[2];
     if (echoMarker?.type === 'reach') {
-      this.echoMarker = this.add.container(echoMarker.x, echoMarker.y);
+      this.echoMarker = this.add.container(echoMarker.x, echoMarker.y).setDepth(1900);
+      const glow = this.add.image(0, 0, 'environment-glow').setTint(0x8ffff0).setScale(2.5).setBlendMode(Phaser.BlendModes.ADD);
+      this.echoMarker.add(glow);
+      this.tweens.add({ targets: glow, alpha: 0.4, scale: 2.9, duration: 2200, yoyo: true, repeat: -1 });
+      for (let i = 0; i < 7; i++) {
+        const mote = this.add.rectangle((i - 3) * 13, 12 - (i % 3) * 18, 3, 3, 0xb8ffe3);
+        this.echoMarker.add(mote);
+        this.tweens.add({ targets: mote, y: mote.y - 35, alpha: 0.1, duration: 1500 + i * 200, yoyo: true, repeat: -1 });
+      }
       this.echoMarker.add(this.add.circle(0, 0, 26, 0x8baf82, 0.3).setStrokeStyle(3, 0xc8b77b));
       this.echoMarker.add(this.add.text(0, -38, 'Old Oak', {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
@@ -196,7 +202,8 @@ export class WorldScene extends Phaser.Scene {
       { x: 560, y: 780, radius: 46 },
     ];
     for (const { x, y, radius } of this.obstacles) {
-      const obstacle = this.add.circle(x, y, radius, 0x66744d).setStrokeStyle(4, 0xc8b77b);
+      const obstacle = this.add.circle(x, y, radius, 0x66744d, 0);
+      addTree(this, x, y, radius);
       this.physics.add.existing(obstacle, true);
       (obstacle.body as Phaser.Physics.Arcade.StaticBody).setCircle(radius);
       this.physics.add.collider(this.player, obstacle);
@@ -319,6 +326,10 @@ export class WorldScene extends Phaser.Scene {
         this.feedbackTone(440);
         this.advanceQuest('interact', 'chosen-horse');
       }
+      else {
+        const cat = villageCats.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, 45));
+        if (cat) { this.ui.notify(`${cat.name} leans into your hand. Prrrr…`); this.feedbackTone(330); }
+      }
       this.persistGame();
     }
 
@@ -340,10 +351,14 @@ export class WorldScene extends Phaser.Scene {
         this.nextDustAt = this.time.now + 140;
       }
     }
-    if (length) this.facingDot.setData('direction', { x, y });
-    const facing = this.facingDot.getData('direction') as { x: number; y: number } | undefined;
-    this.facingDot.setPosition(this.player.x + (facing?.x ?? 1) * 8, this.player.y + (facing?.y ?? 0) * 8);
-    this.player.setDepth(4);
+    if (length) this.riderDirection = Math.abs(x) > Math.abs(y) ? (x > 0 ? 2 : 3) : (y < 0 ? 1 : 0);
+    if (this.mounted) this.riderDirection = this.horse.facing < 0 ? 3 : 2;
+    const riderFrame = (riderAppearances.findIndex(({ id }) => id === this.appearanceId) * 3 + outfits.findIndex(({ id }) => id === this.outfitId)) * 4 + this.riderDirection;
+    const mountedFrame = 36 + Math.floor(riderFrame / 4) * 2 + (this.horse.facing < 0 ? 1 : 0);
+    this.playerArt.setFrame(this.mounted ? mountedFrame : riderFrame).setPosition(this.player.x, this.player.y + (this.mounted ? 28 : 16) + (!this.mounted && body.speed > 30 ? Math.round(Math.sin(this.time.now / 100)) : 0));
+    this.playerArt.setDepth((this.mounted ? this.horse.display.y + 29 : this.player.y + 16));
+    this.playerShadow.setPosition(this.player.x, this.player.y + 12).setDepth(this.player.y - 1).setVisible(!this.mounted);
+    this.horse.animate(this.time.now, this.horseBody.speed);
     const target = this.mounted ? this.horse.display : this.player;
     this.cameraTarget.setPosition(target.x + body.velocity.x * 0.18, target.y + body.velocity.y * 0.12);
     const cameraBlend = 1 - Math.exp(-6 * Math.min(delta, 50) / 1000);
@@ -376,13 +391,13 @@ export class WorldScene extends Phaser.Scene {
       const appearance = getRiderAppearance(this.appearanceId);
       const choices = this.wardrobeCategory === 'outfits' ? outfits : riderAppearances;
       const selected = this.wardrobeCategory === 'outfits' ? this.outfitId : this.appearanceId;
-      this.ui.show('Your wardrobe', `<div class="tabs">${button('outfits-tab', 'Outfits', this.wardrobeCategory === 'outfits')}${button('rider-tab', 'Rider', this.wardrobeCategory === 'rider')}</div><div class="split"><div class="preview"><div class="rider-preview" style="--rider:${color(appearance.color)};--outfit:${color(outfit.color)}"></div><div>${outfit.name}<br><small>YOUR CURRENT LOOK</small></div></div><div class="choices">${choices.map((item) => `<button class="item-choice" id="equip-${item.id}" aria-pressed="${selected === item.id}"><span class="swatch" style="--outfit:${color(this.wardrobeCategory === 'outfits' ? item.color : outfit.color)};--rider:${color(this.wardrobeCategory === 'rider' ? item.color : appearance.color)}"></span><span>${item.name}<br><small>${selected === item.id ? 'Equipped ✓' : 'Wear this look'}</small></span></button>`).join('')}</div></div><p class="muted">All three looks are yours. Choose whatever feels like you.</p>${back}`);
+      this.ui.show('Your wardrobe', `<div class="tabs">${button('outfits-tab', 'Outfits', this.wardrobeCategory === 'outfits')}${button('rider-tab', 'Rider', this.wardrobeCategory === 'rider')}</div><div class="split"><div class="preview"><img class="rider-preview" src="/assets/art/rider-${appearance.id}-${outfit.id}.png" alt="${appearance.name} rider in ${outfit.name} outfit"><div>${outfit.name}<br><small>YOUR CURRENT LOOK</small></div></div><div class="choices">${choices.map((item) => `<button class="item-choice" id="equip-${item.id}" aria-pressed="${selected === item.id}"><span class="swatch" style="--outfit:${color(this.wardrobeCategory === 'outfits' ? item.color : outfit.color)};--rider:${color(this.wardrobeCategory === 'rider' ? item.color : appearance.color)}"></span><span>${item.name}<br><small>${selected === item.id ? 'Equipped ✓' : 'Wear this look'}</small></span></button>`).join('')}</div></div><p class="muted">All three looks are yours. Choose whatever feels like you.</p>${back}`);
       this.ui.bind('outfits-tab', () => { this.wardrobeCategory = 'outfits'; this.openMenu('wardrobe'); });
       this.ui.bind('rider-tab', () => { this.wardrobeCategory = 'rider'; this.openMenu('wardrobe'); });
       for (const item of choices) this.ui.bind(`equip-${item.id}`, () => {
         if (this.wardrobeCategory === 'outfits') this.outfitId = (outfits.find(({ id }) => id === item.id) ?? outfits[0]).id;
         else this.appearanceId = (riderAppearances.find(({ id }) => id === item.id) ?? riderAppearances[0]).id;
-        this.player.setFillStyle(getRiderAppearance(this.appearanceId).color);
+
         this.updateOutfitText();
         this.persistGame();
         this.openMenu('wardrobe');
@@ -390,8 +405,8 @@ export class WorldScene extends Phaser.Scene {
       });
     } else if (page === 'horse') {
       const horse = getHorse(this.horseId);
-      let content = `<div class="split"><div class="preview"><svg viewBox="-45 -60 100 110" width="150" height="150" role="img" aria-label="${horse.name}"><g fill="${color(horse.coatColor)}"><ellipse rx="31" ry="17"/><path d="M12 -9 L30 -37 L39 -7 Z M-22 8 H-15 V36 H-22 Z M9 9 H16 V36 H9 Z"/><ellipse cx="36" cy="-32" rx="12" ry="8"/><path d="M37 -41 L40 -52 L44 -40 Z"/></g></svg><small>ACTIVE HORSE ✓</small></div><div><h2>${horse.name}</h2><p>${horse.breed}</p><p class="muted">Your companion in Sunmeadow.<br>${this.mounted ? 'You are riding together.' : 'Approach your horse and press E to ride.'}</p><p>Owned horses · 1</p></div></div>`;
-      if (this.horseCategory === 'tack') content = '<h2>A simple ride</h2><p>Your horse currently rides without tack.</p><p class="muted">There are no tack items in your collection.</p>';
+      let content = `<div class="split"><div class="preview"><img class="horse-art" src="/assets/art/horse-${horse.id}.png" alt="${horse.name} with teal saddle blanket and leather tack"><small>ACTIVE HORSE ✓</small></div><div><h2>${horse.name}</h2><p>${horse.breed}</p><p class="muted">Your companion in Sunmeadow.<br>${this.mounted ? 'You are riding together.' : 'Approach your horse and press E to ride.'}</p><p>Owned horses · 1</p></div></div>`;
+      if (this.horseCategory === 'tack') content = '<h2>A simple ride</h2><p>A leather saddle and teal blanket are fitted for your ride.</p><p class="muted">This starter tack is part of your horse’s look. There are no extra tack items in your collection.</p>';
       if (this.horseCategory === 'stable') content = stableDecorationSlots.map((slot) => `<div class="item-row"><span>${slot.name}</span>${button(`decorate-${slot.id}`, decorations.find(({ id }) => id === this.decorationSelections.get(slot.id))!.name + ' · Change')}</div>`).join('');
       this.ui.show('Horse & stable', `<div class="tabs">${button('horse-tab', 'Your horse', this.horseCategory === 'horse')}${button('tack-tab', 'Tack', this.horseCategory === 'tack')}${button('stable-tab', 'Stable', this.horseCategory === 'stable')}</div>${content}<br>${back}`);
       for (const category of ['horse', 'tack', 'stable'] as const) this.ui.bind(`${category}-tab`, () => { this.horseCategory = category; this.openMenu('horse'); });
@@ -421,6 +436,10 @@ export class WorldScene extends Phaser.Scene {
       if (villager) text = `E · Talk to ${villager.name}`;
       else if (this.wildflower?.active && this.isNear(x, y, this.wildflower.x, this.wildflower.y, QUEST_INTERACTION_RANGE)) text = 'E · Pick wildflower';
       else if (this.isNear(x, y, this.horse.display.x, this.horse.display.y, INTERACTION_RANGE)) text = `E · Ride ${getHorse(this.horseId).name}`;
+      else {
+        const cat = villageCats.find((cat) => this.isNear(x, y, cat.x, cat.y, 45));
+        if (cat) text = `E · Pet ${cat.name}`;
+      }
     }
     this.ui.setPrompt(text);
   }
@@ -471,46 +490,21 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private renderVillage(): void {
-    const path = this.add.graphics();
-    path.lineStyle(24, 0xb59a68, 0.8);
-    for (let index = 1; index < villageRoute.length; index += 1) {
-      const from = villageRoute[index - 1]!;
-      const to = villageRoute[index]!;
-      path.lineBetween(from.x, from.y, to.x, to.y);
-    }
-
-    for (const building of villageBuildings) {
-      this.add.rectangle(building.x, building.y, building.width, building.height, building.wallColor)
-        .setStrokeStyle(3, 0x493f33);
-      this.add.triangle(
-        building.x,
-        building.y - building.height / 2 - 17,
-        -building.width / 2 - 8, 17,
-        0, -17,
-        building.width / 2 + 8, 17,
-        building.roofColor,
-      );
-      this.add.text(building.x, building.y + building.height / 2 + 8, building.name, {
-        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '12px',
-        backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
-      }).setOrigin(0.5);
-    }
-
     for (const villager of villagers) {
-      this.add.circle(villager.x, villager.y, 15, villager.color).setStrokeStyle(3, 0xc8b77b);
-      this.add.text(villager.x, villager.y - 26, villager.name, {
+      this.add.image(villager.x, villager.y + 16, 'riders', villager.id === 'village-baker' ? 4 : 12).setOrigin(0.5, 1).setScale(1.25).setDepth(villager.y + 16);
+      this.add.text(villager.x, villager.y - 51, villager.name, {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '12px',
         backgroundColor: '#173b36cc', padding: { x: 4, y: 2 },
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(2000);
     }
 
     for (const cat of villageCats) {
-      this.add.circle(cat.x, cat.y, 10, cat.color).setStrokeStyle(2, 0x493f33);
-      this.add.circle(cat.x + 9, cat.y - 5, 7, cat.color).setStrokeStyle(2, 0x493f33);
+      const sprite = this.add.image(cat.x, cat.y, 'cats', cat.id === 'calico-cat' ? 0 : cat.id === 'gray-cat' ? 1 : 2).setScale(1.5).setDepth(cat.y + 16);
+      this.tweens.add({ targets: sprite, y: cat.y - 2, duration: 1800, yoyo: true, repeat: -1 });
       this.add.text(cat.x, cat.y - 23, cat.name, {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '11px',
         backgroundColor: '#173b36cc', padding: { x: 4, y: 2 },
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(2000);
     }
   }
 
@@ -568,18 +562,15 @@ export class WorldScene extends Phaser.Scene {
   private renderStableDecorations(): void {
     for (const slot of stableDecorationSlots) {
       const x = KEEPER_POSITION.x + slot.x;
-      const y = KEEPER_POSITION.y + slot.y;
+      const y = KEEPER_POSITION.y - 100;
       const decorationId = this.decorationSelections.get(slot.id) ?? slot.defaultDecorationId;
       const decoration = decorations.find(({ id }) => id === decorationId) ?? decorations[0];
       const marker = this.add.text(x, y, decoration.symbol, {
         color: decoration.color, fontFamily: 'Arial, sans-serif', fontSize: '24px',
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(2000);
       const label = this.add.text(x, y + 22, decoration.name, {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '11px',
-      }).setOrigin(0.5);
-      this.add.text(x, y - 21, slot.name, {
-        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '11px',
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setVisible(false);
       this.decorationDisplays.set(slot.id, { marker, label });
     }
   }
@@ -684,7 +675,7 @@ export class WorldScene extends Phaser.Scene {
 
   private updateOutfitText(): void {
     const outfit = outfits.find(({ id }) => id === this.outfitId) ?? outfits[0];
-    this.player.setStrokeStyle(5, outfit.color);
+    this.playerArt.setFrame((riderAppearances.findIndex(({ id }) => id === this.appearanceId) * 3 + outfits.indexOf(outfit)) * 4 + this.riderDirection);
   }
 
   private updateQuestText(): void {

@@ -1,18 +1,17 @@
 # Handoff
 
 ## Completed batch
-User-requested UI/UX and gameplay-feel pass for the existing birthday slice. Stop here; no backlog task was advanced and no post-birthday content was started.
+Original pixel-art presentation pass for the existing birthday slice. Working UI/UX, controls, race flow, story and version-1 saves were preserved. No backlog advancement or new region was started.
 
 ## Durable implementation
-- Gameplay HUD is limited to objective, contextual interaction/riding prompt and Menu. Management lives in one native HTML dialog shell: I satchel, O wardrobe, H horse/stable, J journal, Esc pause/sound.
-- Wardrobe has existing outfit/rider categories, previews and equipped states. Horse view reflects one owned horse; tack and bakery counter have honest empty states. Stable slots moved into horse management.
-- Dialogs stop movement, wrap keyboard focus, support Escape/close/back, and pause race/countdown time. Dialogue uses a focused Continue button. Losing game focus opens pause.
-- Race flow: mounted gate → briefing → 3–2–1–GO → timed HUD with next-gate direction → results/reward. Checkpoints appear only during races. Dismount cancels and clears race presentation.
-- Walking is responsive; riding accelerates to a higher speed, brakes gently, faces direction and leaves subtle dust. Horse collision geometry is centered without mirroring physics. Camera uses velocity look-ahead, easing and a slightly wider mounted view.
-- Item, equip, quest and checkpoint feedback exists, with quiet sound cues. Save schema stays at version 1; mounted positions remain valid at the north boundary. Sound volume is a session preference.
+- `public/assets/art/` contains original production PNGs. Source generators are separate in `scripts/art/`; Python/Pillow is needed only to regenerate art, not to run/build the game. No runtime dependencies were added.
+- `src/art/Environment.ts` loads and places textured ground, timber stable/village architecture, trees, fences, pond and props. Static detail is baked into ground; buildings, trees and actors use ground-position depth. Existing four obstacle collision circles remain; additional scenery is decorative.
+- Horses share a 96×80 sheet with three coats and four leg-cycle frames per horse. Maple has warm brown shading, a readable Quarter Horse silhouette, mane, markings, leather tack and teal blanket. Horse visual flipping leaves physics geometry unchanged.
+- Riders use a 32×48 sheet: first 36 frames are appearance/outfit/direction combinations; the final 18 are seated left/right poses. Separate matching PNGs serve wardrobe previews. Hair, jacket, shirt and boots are visible. Creator previews all existing choices.
+- Menu and management windows share wood, cream and teal styling with square borders and preserved keyboard focus behavior. Starter tack is described honestly as visual equipment; no tack inventory system was introduced. Stable decoration symbols now sit on the facade.
+- Three cat appearances have nearby E-to-pet feedback. Warm window glows, 18 drifting pollen sprites, pond shimmer, shadows and teal Echo glow/motes provide light atmosphere without shaders or new systems.
 
-## Validation
-Build, typecheck and diff whitespace checks passed. There is no pre-existing test/lint npm script. `node scripts/verify-ui.mjs` runs a reproducible isolated Chromium check against running Vite, covering window open/close/focus, equip, dialogue, quest/reward progression, bakery, movement/braking/collisions, race countdown/pause/resume/finish/cancel, saves and desktop layouts. A complete lap driven with keyboard events, mounted reload at the north boundary, and 1024×768/1920×1080 layouts passed with no browser errors. Screenshots were visually reviewed from the system temporary directory. Existing Vite large-bundle advisory remains.
+## Validation and limits
+Build and typecheck passed; the project has no npm test/lint command. Expanded `scripts/verify-ui.mjs` uses isolated Chromium to check menus, all creator choices, texture loading, customization, cat petting, dialogue/quests, horse collisions, race countdown/pause/resume/finish/cancel, saved progress and desktop layouts. Runtime screenshots cover menu, creator, wardrobe, horses, countryside, village, riding, Echo and birthday dialogue. The completed browser pass reported 60 FPS and no browser errors. Vite retains its existing large-bundle advisory.
 
-## Limits and repository context
-World art and character markers remain placeholders by scope. No economy, new tack inventory, extra horses, regions or save redesign were introduced. The initial working tree contained untracked baseline config/package/design files; task commits exclude those unrelated files. Management UI was committed/pushed separately before the riding/race increment.
+The initial working tree contained unrelated untracked baseline package/config/design files; these remain outside the visual task commit. `CURRENT_TASK.md` continues to record the previous completed UI task; this batch was directly authorized by the user. Stop here until further direction.

@@ -30,6 +30,7 @@ export const villagers = [
 
 export const villageCats = [
   { id: 'calico-cat', name: 'Calico Cat', x: 450, y: 410, color: 0xd9a36f },
+  { id: 'stable-cat', name: 'Cream Tabby', x: 740, y: 530, color: 0xe6d3ad },
   { id: 'gray-cat', name: 'Gray Cat', x: 200, y: 390, color: 0x999b9b },
 ] as const;
 
