@@ -46,7 +46,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 
 ## M5 — Inventory and clothing
 
-- [ ] T010 Minimal typed item inventory/reward flow
+- [x] T010 Minimal typed item inventory/reward flow
   - agent_tier: standard
   - context_budget: small
 - [ ] T011 Equip and change a few rider outfits

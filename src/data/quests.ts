@@ -1,3 +1,5 @@
+import type { ItemId } from './items';
+
 export type QuestObjective =
   | { type: 'talk'; target: 'stable-keeper'; description: string }
   | { type: 'reach'; target: 'clearing-marker'; x: number; y: number; description: string }
@@ -6,6 +8,7 @@ export type QuestObjective =
 
 export const firstRideQuest = {
   name: 'A First Ride',
+  reward: 'horse-apple' as ItemId,
   objectives: [
     { type: 'talk', target: 'stable-keeper', description: 'Talk to the Stable Keeper' },
     { type: 'reach', target: 'clearing-marker', x: 1300, y: 420, description: 'Reach the clearing marker' },

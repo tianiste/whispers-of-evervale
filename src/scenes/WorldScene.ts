@@ -5,6 +5,7 @@ import { getRiderAppearance, type RiderAppearanceId } from '../data/riderAppeara
 import { stableKeeperGreeting } from '../data/dialogue';
 import { DialogueBox } from '../ui/DialogueBox';
 import { firstRideQuest, type QuestObjective } from '../data/quests';
+import { items, type ItemId } from '../data/items';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -25,7 +26,10 @@ export class WorldScene extends Phaser.Scene {
   private mounted = false;
   private questIndex = 0;
   private questText!: Phaser.GameObjects.Text;
+  private inventory = new Map<ItemId, number>();
+  private inventoryText!: Phaser.GameObjects.Text;
   private wildflower!: Phaser.GameObjects.Arc;
+  private wildflowerLabel!: Phaser.GameObjects.Text;
   private dialogueBox!: DialogueBox;
   private dialogueContinueKeys!: { enter: Phaser.Input.Keyboard.Key; space: Phaser.Input.Keyboard.Key };
   private interactionKey!: Phaser.Input.Keyboard.Key;
@@ -49,6 +53,7 @@ export class WorldScene extends Phaser.Scene {
     this.appearanceId = getRiderAppearance(data.appearanceId).id;
     this.horseId = getHorse(data.horseId).id;
     this.questIndex = 0;
+    this.inventory.clear();
   }
 
   create(): void {
@@ -92,7 +97,7 @@ export class WorldScene extends Phaser.Scene {
     const flower = firstRideQuest.objectives[2];
     if (flower?.type === 'collect') {
       this.wildflower = this.add.circle(flower.x, flower.y, 11, 0xd78fa8).setStrokeStyle(3, 0xf4e9cf);
-      this.add.text(flower.x, flower.y - 22, 'Wildflower', {
+      this.wildflowerLabel = this.add.text(flower.x, flower.y - 22, 'Wildflower', {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
         backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
       }).setOrigin(0.5);
@@ -143,7 +148,12 @@ export class WorldScene extends Phaser.Scene {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '15px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 7 },
     }).setScrollFactor(0);
+    this.inventoryText = this.add.text(16, 91, '', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+      backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
+    }).setScrollFactor(0);
     this.updateQuestText();
+    this.updateInventoryText();
     this.dialogueBox = new DialogueBox(this);
   }
 
@@ -183,6 +193,8 @@ export class WorldScene extends Phaser.Scene {
       }
       else if (this.wildflower?.active && this.isNear(this.player.x, this.player.y, this.wildflower.x, this.wildflower.y, QUEST_INTERACTION_RANGE)) {
         this.wildflower.destroy();
+        this.wildflowerLabel.destroy();
+        this.addItem('wildflower');
         this.advanceQuest('collect', 'wildflower');
       }
       else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y) <= INTERACTION_RANGE) {
@@ -212,7 +224,20 @@ export class WorldScene extends Phaser.Scene {
     const objective = firstRideQuest.objectives[this.questIndex];
     if (!objective || objective.type !== type || objective.target !== target) return;
     this.questIndex += 1;
+    if (this.questIndex === firstRideQuest.objectives.length) this.addItem(firstRideQuest.reward);
     this.updateQuestText();
+  }
+
+  private addItem(id: ItemId): void {
+    this.inventory.set(id, (this.inventory.get(id) ?? 0) + 1);
+    this.updateInventoryText();
+  }
+
+  private updateInventoryText(): void {
+    const contents = items
+      .filter(({ id }) => (this.inventory.get(id) ?? 0) > 0)
+      .map(({ id, name }) => `${name} ×${this.inventory.get(id)}`);
+    this.inventoryText.setText(contents.length ? `Inventory: ${contents.join(' · ')}` : 'Inventory: empty');
   }
 
   private updateQuestText(): void {

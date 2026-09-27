@@ -2,18 +2,18 @@
 
 ## Task completed
 
-T009 — First Ride Quest Progress.
+T010 — Minimal Item Inventory and Quest Reward.
 
 ## Implementation
 
-- Typed `A First Ride` objectives progress in order: talk to the keeper, reach the marked circle, collect the wildflower with E, and interact with the chosen horse.
-- `WorldScene` updates a pinned HUD tracker; completing the final objective displays a completion message.
-- Quest progress is runtime-only. The collector is removed when gathered, and the horse interaction uses the existing mount/dismount flow.
+- Item definitions in `src/data/items.ts` use stable IDs for the wildflower and horse apple.
+- Collecting the flower adds one item and removes both its marker and label. Completing the quest adds one horse apple.
+- The pinned HUD shows item counts; inventory state is runtime-only and resets with the scene.
 
 ## Verification
 
 - `npm run build` passed. Vite printed its existing large-bundle advisory.
-- Chromium completed all four objectives in order and observed each HUD update through “A First Ride: Complete!”.
+- Chromium verified the wildflower count after collection, one horse apple after quest completion, and that later interactions do not duplicate the reward.
 - `git diff --check` passed.
 
 ## Known issues and blocker
@@ -24,7 +24,7 @@ T009 — First Ride Quest Progress.
 ## Relevant next files
 
 - `src/scenes/WorldScene.ts`
-- `src/data/quests.ts`
+- `src/data/quests.ts` and `src/data/items.ts`
 
 ## Contracts to preserve
 
@@ -33,4 +33,4 @@ T009 — First Ride Quest Progress.
 
 ## Current playable state
 
-Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. Follow “A First Ride” in the HUD: talk to the keeper, reach the marked spot, collect the wildflower with E, then mount the chosen horse. Dialogue closes with Enter or Space.
+Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. Follow “A First Ride” in the HUD: talk to the keeper, reach the marked spot, collect the wildflower with E, then mount the chosen horse. Inventory shows the flower and the horse apple quest reward. Dialogue closes with Enter or Space.

@@ -20,6 +20,7 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - The character creator offers three typed placeholder rider colors and three typed first-horse options with live previews. Confirmed rider and horse IDs are passed into the clearing; the chosen rider stays consistent through mounting/dismounting, and the selected horse definition drives its appearance.
 - A nearby placeholder stable keeper opens one typed greeting in a reusable dialogue box. While the box is open, player and horse movement pause; Enter or Space closes it.
 - The typed “A First Ride” quest tracks talk, reach, collect, and horse interaction objectives in order, with a HUD tracker and completion message. Progress lasts only for the current scene session.
+- Collecting the quest wildflower adds a typed item to the runtime inventory; completing the quest grants one horse apple. A compact HUD line shows item counts. Inventory is not saved.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths
