@@ -1,28 +1,33 @@
-# T017 — Versioned Local Save/Load and Recovery
+# T018 — End-to-End Birthday Slice Stability Pass
 
-agent_tier: orchestrator
+agent_tier: standard
 context_budget: medium
-
-Status: blocked pending the persistence contract.
 
 ## Goal
 
-Persist the agreed birthday-slice progress locally with versioning and safe recovery.
+Verify the birthday slice works from character creation through the finale and save recovery, fixing only issues that block those flows.
 
-## Decisions Required Before Implementation
+## Acceptance Criteria
 
-- Which runtime state survives restart: character/horse selection, quest progress, inventory, outfit, stable decorations, and race state?
-- Should invalid or unsupported save data reset to defaults, preserve a backup, or prompt the player?
+- Verify character/horse selection, first-ride objectives and reward, and race checkpoint order/reward.
+- Verify Echo unlocks after the first ride, clues progress in order, and the finale note/reward complete correctly.
+- Verify a reload resumes saved progress and malformed or unsupported data starts a new game.
+- Confirm no uncaught browser exceptions during these flows.
 
 ## Relevant Files
 
-- `src/data/` state definitions
-- `src/scenes/` initialization and runtime state
+- `src/scenes/`
+- `src/data/`
+
+## Allowed Changes
+
+- Fix only regressions found in the end-to-end flow.
 
 ## Do Not Implement
 
-- Cloud sync, accounts, or post-birthday expansion.
+- New gameplay systems, regions, art, or dependencies.
 
 ## Verification
 
-- To define after the persistence contract is agreed.
+- `npm run build`
+- Complete the flows in Chromium and inspect browser exceptions.

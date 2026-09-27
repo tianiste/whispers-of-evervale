@@ -19,13 +19,14 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - The player can mount the first horse with E within interaction range, ride with WASD/arrows, and dismount into a nearby clear spot. Horse and player collide with clearing obstacles and world bounds; the camera follows the mounted rider.
 - The character creator offers three typed placeholder rider colors and three typed first-horse options with live previews. Confirmed rider and horse IDs are passed into the clearing; the chosen rider stays consistent through mounting/dismounting, and the selected horse definition drives its appearance.
 - A nearby placeholder stable keeper opens one typed greeting in a reusable dialogue box. While the box is open, player and horse movement pause; Enter or Space closes it.
-- The typed “A First Ride” quest tracks talk, reach, collect, and horse interaction objectives in order, with a HUD tracker and completion message. Progress lasts only for the current scene session.
-- Collecting the quest wildflower adds a typed item to the runtime inventory; completing the quest grants one horse apple. A compact HUD line shows item counts. Inventory is not saved.
-- The player can cycle among three typed placeholder outfits with O; each outfit changes the rider marker's outline, which remains visible while mounted and dismounted. Outfit choice is runtime-only.
-- The mounted rider can start the typed Clearing Canter at its marked gate, pass three numbered checkpoints in order, and earn one horse apple on completion. The HUD shows checkpoint progress and elapsed time; race state is runtime-only.
-- Three typed stable decoration slots each cycle through flower box, lantern, and wreath options with number keys. The stable display updates immediately; selections last for the current game session and reset on restart until versioned saves are implemented.
+- The typed “A First Ride” and “A Familiar Echo” quests track ordered progress in the HUD. Echo leads to Hana’s editable finale note signed by Tian and grants one horse apple. Quest and finale dialogue state are saved locally.
+- Collecting the quest wildflower adds a typed item to inventory; first-ride and Echo completion each grant one horse apple. Inventory counts are saved locally.
+- The player can cycle among three typed placeholder outfits with O; each outfit changes the rider marker's outline and is saved locally.
+- The mounted rider can start the typed Clearing Canter at its marked gate, pass three numbered checkpoints in order, and earn one horse apple on completion. Active checkpoint, elapsed time, result, and reward are saved locally.
+- Three typed stable decoration slots each cycle through flower box, lantern, and wreath options with number keys. Selections are saved locally and restored on continue.
 - A marked dirt lane connects the stable clearing to a compact village with two placeholder buildings, two typed villagers using the dialogue box, and two fixed-position cat cameos.
-- Completing “A First Ride” unlocks the short “A Familiar Echo” quest: the Stable Keeper and Trail Guide reveal clues in order, leading to an old oak and Hana’s editable birthday note signed by Tian. It grants one horse apple, then returns to free roam after the note closes. Quest, inventory, and finale state are runtime-only.
+- Completing “A First Ride” unlocks the short “A Familiar Echo” quest: the Stable Keeper and Trail Guide reveal clues in order, leading to an old oak and Hana’s editable birthday note signed by Tian. It grants one horse apple, then returns to free roam after the note closes.
+- Version 1 local saves restore the current slice state, including selections, player/horse positions and mount state, quest progress, inventory, outfit, decorations, active/completed race state, and open dialogue. Invalid or unsupported data is discarded and starts a new game through the character creator.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths
@@ -37,8 +38,8 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 
 ## Contracts
 
-Keep data definitions, serializable state, runtime logic, rendering, and UI distinct. Add only structures required by the current task. Local browser persistence is planned, not implemented. Personal finale text stays editable/configurable. Do not expand beyond the birthday slice until its core works.
+Keep data definitions, serializable state, runtime logic, rendering, and UI distinct. Add only structures required by the current task. Personal finale text stays editable/configurable and is resolved from dialogue IDs rather than copied into save data. Do not expand beyond the birthday slice until its core works.
 
 ## Known gaps
 
-Production world art, expanded character and horse customization, larger dialogue/quest content, clothing beyond the three placeholder outfits, a full stable builder, saving/loading, and polish remain unimplemented. The current world, obstacles, and marker are temporary test scaffolding.
+Production world art, expanded character and horse customization, larger dialogue/quest content, clothing beyond the three placeholder outfits, a full stable builder, and polish remain unimplemented. The current world, obstacles, and marker are temporary test scaffolding.

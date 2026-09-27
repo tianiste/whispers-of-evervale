@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { WORLD_HEIGHT, WORLD_WIDTH } from '../config/world';
 import { HorseEntity } from '../entities/HorseEntity';
 import { getHorse, type HorseId } from '../data/horses';
 import { getRiderAppearance, type RiderAppearanceId } from '../data/riderAppearances';
@@ -11,9 +12,8 @@ import { outfits, type OutfitId } from '../data/outfits';
 import { clearingRace } from '../data/race';
 import { decorations, stableDecorationSlots, type StableDecorationSlotId } from '../data/decorations';
 import { villageBuildings, villageCats, villageRoute, villagers } from '../data/village';
+import { SAVE_VERSION, storeGameSave, type GameSave, type SavedDialogueId } from '../data/save';
 
-const WORLD_WIDTH = 1800;
-const WORLD_HEIGHT = 1100;
 const PLAYER_RADIUS = 14;
 const PLAYER_SPEED = 220;
 const HORSE_RADIUS = 25;
@@ -50,7 +50,12 @@ export class WorldScene extends Phaser.Scene {
   private decorationKeys!: Record<StableDecorationSlotId, Phaser.Input.Keyboard.Key>;
   private raceCheckpointIndex: number | null = null;
   private raceStartedAt = 0;
+  private raceElapsedMs = 0;
   private raceLastDisplay = -1;
+  private raceResultText = '';
+  private activeDialogueId: SavedDialogueId | null = null;
+  private restoreSave: GameSave | null = null;
+  private nextAutosaveAt = 0;
   private obstacles: { x: number; y: number; radius: number }[] = [];
   private movementKeys!: {
     up: Phaser.Input.Keyboard.Key;
@@ -67,15 +72,30 @@ export class WorldScene extends Phaser.Scene {
     super('World');
   }
 
-  init(data: { appearanceId?: RiderAppearanceId; horseId?: HorseId }): void {
-    this.appearanceId = getRiderAppearance(data.appearanceId).id;
-    this.horseId = getHorse(data.horseId).id;
-    this.outfitId = outfits[0].id;
-    this.questIndex = 0;
-    this.echoQuestIndex = 0;
-    this.raceCheckpointIndex = null;
-    this.raceLastDisplay = -1;
+  init(data: { appearanceId?: RiderAppearanceId; horseId?: HorseId; save?: GameSave }): void {
+    const save = data.save;
+    this.restoreSave = save ?? null;
+    this.appearanceId = getRiderAppearance(save?.appearanceId ?? data.appearanceId).id;
+    this.horseId = getHorse(save?.horseId ?? data.horseId).id;
+    this.outfitId = save?.outfitId ?? outfits[0].id;
+    this.questIndex = save?.firstRideIndex ?? 0;
+    this.echoQuestIndex = save?.echoQuestIndex ?? 0;
+    this.mounted = save?.mounted ?? false;
     this.inventory.clear();
+    for (const item of items) {
+      const count = save?.inventory[item.id];
+      if (count !== undefined) this.inventory.set(item.id, count);
+    }
+    this.decorationSelections = new Map(stableDecorationSlots.map(({ id, defaultDecorationId }) => [
+      id,
+      save?.decorations[id] ?? defaultDecorationId,
+    ]));
+    this.raceCheckpointIndex = save?.race.checkpointIndex ?? null;
+    this.raceStartedAt = 0;
+    this.raceElapsedMs = save?.race.elapsedMs ?? 0;
+    this.raceResultText = save?.race.resultText ?? '';
+    this.activeDialogueId = save?.dialogue ?? null;
+    this.raceLastDisplay = -1;
   }
 
   create(): void {
@@ -96,16 +116,21 @@ export class WorldScene extends Phaser.Scene {
     this.renderVillage();
 
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    this.player = this.add.circle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, PLAYER_RADIUS, getRiderAppearance(this.appearanceId).color);
+    const save = this.restoreSave;
+    const playerX = save?.player.x ?? WORLD_WIDTH / 2;
+    const playerY = save?.player.y ?? WORLD_HEIGHT / 2;
+    this.player = this.add.circle(playerX, playerY, PLAYER_RADIUS, getRiderAppearance(this.appearanceId).color);
     this.player.setStrokeStyle(3, 0x173b36);
     this.physics.add.existing(this.player);
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerBody.setCircle(PLAYER_RADIUS).setCollideWorldBounds(true);
+    this.playerBody.enable = !this.mounted;
 
-    this.horse = new HorseEntity(this, getHorse(this.horseId), WORLD_WIDTH / 2 + 75, WORLD_HEIGHT / 2 + 100);
+    this.horse = new HorseEntity(this, getHorse(this.horseId), save?.horse.x ?? WORLD_WIDTH / 2 + 75, save?.horse.y ?? WORLD_HEIGHT / 2 + 100);
     this.physics.add.existing(this.horse.display);
     this.horseBody = this.horse.display.body as Phaser.Physics.Arcade.Body;
     this.horseBody.setCircle(HORSE_RADIUS).setCollideWorldBounds(true);
+    if (this.mounted) this.player.setPosition(this.horse.display.x, this.horse.display.y - 35);
 
     this.add.circle(KEEPER_POSITION.x, KEEPER_POSITION.y, 18, 0x8baf82).setStrokeStyle(3, 0xc8b77b);
     this.add.text(KEEPER_POSITION.x, KEEPER_POSITION.y - 32, 'Stable Keeper', {
@@ -140,6 +165,10 @@ export class WorldScene extends Phaser.Scene {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
         backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
       }).setOrigin(0.5);
+      if ((this.inventory.get('wildflower') ?? 0) > 0) {
+        this.wildflower.destroy();
+        this.wildflowerLabel.destroy();
+      }
     }
     const echoMarker = echoQuest.objectives[2];
     if (echoMarker?.type === 'reach') {
@@ -220,6 +249,17 @@ export class WorldScene extends Phaser.Scene {
     this.updateQuestText();
     this.updateInventoryText();
     this.dialogueBox = new DialogueBox(this);
+    if (this.raceCheckpointIndex !== null) {
+      this.raceStartedAt = this.time.now - this.raceElapsedMs;
+      this.raceText.setText(`${clearingRace.name}: Checkpoint ${this.raceCheckpointIndex + 1}/${clearingRace.checkpoints.length} · ${(this.raceElapsedMs / 1000).toFixed(1)}s`);
+    } else if (this.raceResultText) {
+      this.raceText.setText(this.raceResultText);
+    }
+    if (this.activeDialogueId) this.dialogueBox.show(this.getDialogue(this.activeDialogueId));
+    this.nextAutosaveAt = this.time.now + 1000;
+    window.addEventListener('pagehide', this.handlePageHide);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => window.removeEventListener('pagehide', this.handlePageHide));
+    this.persistGame();
   }
 
   update(): void {
@@ -231,6 +271,8 @@ export class WorldScene extends Phaser.Scene {
       this.horseBody.setVelocity(0, 0);
       if (Phaser.Input.Keyboard.JustDown(this.dialogueContinueKeys.enter) || Phaser.Input.Keyboard.JustDown(this.dialogueContinueKeys.space)) {
         this.dialogueBox.hide();
+        this.activeDialogueId = null;
+        this.persistGame();
       }
       return;
     }
@@ -260,11 +302,11 @@ export class WorldScene extends Phaser.Scene {
       }
       else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, KEEPER_POSITION.x, KEEPER_POSITION.y) <= INTERACTION_RANGE) {
         if (this.echoQuestAvailable('stable-keeper')) {
-          this.dialogueBox.show(echoClues['stable-keeper']);
+          this.showDialogue('echo-keeper-clue', echoClues['stable-keeper']);
           this.advanceQuest('talk', 'stable-keeper');
         } else {
           this.advanceQuest('talk', 'stable-keeper');
-          this.dialogueBox.show(stableKeeperGreeting);
+          this.showDialogue('stable-keeper-greeting', stableKeeperGreeting);
         }
       }
       else if (this.talkToNearbyVillager()) {}
@@ -279,12 +321,17 @@ export class WorldScene extends Phaser.Scene {
         this.playerBody.enable = false;
         this.advanceQuest('interact', 'chosen-horse');
       }
+      this.persistGame();
     }
 
     const body = this.mounted ? this.horseBody : this.playerBody;
     body.setVelocity(x * PLAYER_SPEED, y * PLAYER_SPEED);
     if (this.mounted) this.player.setPosition(this.horse.display.x, this.horse.display.y - 35);
     this.updateRace();
+    if (this.time.now >= this.nextAutosaveAt) {
+      this.persistGame();
+      this.nextAutosaveAt = this.time.now + 1000;
+    }
   }
 
   private isNear(x: number, y: number, targetX: number, targetY: number, range: number): boolean {
@@ -295,12 +342,27 @@ export class WorldScene extends Phaser.Scene {
     const villager = villagers.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, INTERACTION_RANGE));
     if (!villager) return false;
     if (villager.id === 'trail-guide' && this.echoQuestAvailable('trail-guide')) {
-      this.dialogueBox.show(echoClues['trail-guide']);
+      this.showDialogue('echo-guide-clue', echoClues['trail-guide']);
       this.advanceQuest('talk', 'trail-guide');
       return true;
     }
-    this.dialogueBox.show(villager.dialogue);
+    this.showDialogue(villager.id === 'village-baker' ? 'village-baker' : 'trail-guide', villager.dialogue);
     return true;
+  }
+
+  private showDialogue(id: SavedDialogueId, dialogue: { speaker: string; message: string }): void {
+    this.activeDialogueId = id;
+    this.dialogueBox.show(dialogue);
+    this.persistGame();
+  }
+
+  private getDialogue(id: SavedDialogueId): { speaker: string; message: string } {
+    if (id === 'stable-keeper-greeting') return stableKeeperGreeting;
+    if (id === 'echo-keeper-clue') return echoClues['stable-keeper'];
+    if (id === 'echo-guide-clue') return echoClues['trail-guide'];
+    if (id === 'birthday-finale') return birthdayFinale;
+    const villager = villagers.find(({ id: villagerId }) => villagerId === id);
+    return villager?.dialogue ?? stableKeeperGreeting;
   }
 
   private echoQuestAvailable(target: 'stable-keeper' | 'trail-guide'): boolean {
@@ -359,7 +421,7 @@ export class WorldScene extends Phaser.Scene {
       : echoQuest.objectives[this.echoQuestIndex];
     if (objective?.type === 'reach' && this.isNear(this.player.x, this.player.y, objective.x, objective.y, QUEST_INTERACTION_RANGE)) {
       this.advanceQuest(objective.type, objective.target);
-      if (objective.target === 'echo-marker') this.dialogueBox.show(birthdayFinale);
+      if (objective.target === 'echo-marker') this.showDialogue('birthday-finale', birthdayFinale);
     }
   }
 
@@ -377,6 +439,7 @@ export class WorldScene extends Phaser.Scene {
       if (this.echoQuestIndex === echoQuest.objectives.length) this.addItem(echoQuest.reward);
     }
     this.updateQuestText();
+    this.persistGame();
   }
 
   private addItem(id: ItemId): void {
@@ -389,6 +452,7 @@ export class WorldScene extends Phaser.Scene {
       .filter(({ id }) => (this.inventory.get(id) ?? 0) > 0)
       .map(({ id, name }) => `${name} ×${this.inventory.get(id)}`);
     this.inventoryText.setText(contents.length ? `Inventory: ${contents.join(' · ')}` : 'Inventory: empty');
+    this.persistGame();
   }
 
   private cycleOutfit(): void {
@@ -396,6 +460,7 @@ export class WorldScene extends Phaser.Scene {
     const outfit = outfits[(index + 1) % outfits.length] ?? outfits[0];
     this.outfitId = outfit.id;
     this.updateOutfitText();
+    this.persistGame();
   }
 
   private cycleDecoration(slotId: StableDecorationSlotId): void {
@@ -406,6 +471,7 @@ export class WorldScene extends Phaser.Scene {
     const display = this.decorationDisplays.get(slotId);
     display?.marker.setText(decoration.symbol).setColor(decoration.color);
     display?.label.setText(decoration.name);
+    this.persistGame();
   }
 
   private renderStableDecorations(): void {
@@ -433,8 +499,10 @@ export class WorldScene extends Phaser.Scene {
 
     this.raceCheckpointIndex = 0;
     this.raceStartedAt = this.time.now;
+    this.raceElapsedMs = 0;
     this.raceLastDisplay = -1;
     this.raceText.setText(`${clearingRace.name}: Checkpoint 1/${clearingRace.checkpoints.length}`);
+    this.persistGame();
   }
 
   private updateRace(): void {
@@ -442,25 +510,32 @@ export class WorldScene extends Phaser.Scene {
 
     if (!this.mounted) {
       this.raceCheckpointIndex = null;
-      this.raceText.setText(`${clearingRace.name}: Cancelled — mount up and return to the start`);
+      this.raceResultText = `${clearingRace.name}: Cancelled — mount up and return to the start`;
+      this.raceText.setText(this.raceResultText);
+      this.persistGame();
       return;
     }
 
     const checkpoint = clearingRace.checkpoints[this.raceCheckpointIndex];
     if (checkpoint && this.isNear(this.horse.display.x, this.horse.display.y, checkpoint.x, checkpoint.y, checkpoint.radius)) {
       this.raceCheckpointIndex += 1;
+      this.raceElapsedMs = this.time.now - this.raceStartedAt;
       if (this.raceCheckpointIndex === clearingRace.checkpoints.length) {
         const seconds = (this.time.now - this.raceStartedAt) / 1000;
+        this.raceElapsedMs = this.time.now - this.raceStartedAt;
         this.raceCheckpointIndex = null;
-        this.raceText.setText(`${clearingRace.name}: Finished in ${seconds.toFixed(1)}s! Horse Apple earned.`);
+        this.raceResultText = `${clearingRace.name}: Finished in ${seconds.toFixed(1)}s! Horse Apple earned.`;
+        this.raceText.setText(this.raceResultText);
         this.addItem(clearingRace.reward);
         return;
       }
+      this.persistGame();
     }
 
     const tenths = Math.floor((this.time.now - this.raceStartedAt) / 100);
     if (tenths !== this.raceLastDisplay) {
       this.raceLastDisplay = tenths;
+      this.raceElapsedMs = this.time.now - this.raceStartedAt;
       this.raceText.setText(`${clearingRace.name}: Checkpoint ${this.raceCheckpointIndex + 1}/${clearingRace.checkpoints.length} · ${(tenths / 10).toFixed(1)}s`);
     }
   }
@@ -480,6 +555,36 @@ export class WorldScene extends Phaser.Scene {
     const objective = echoQuest.objectives[this.echoQuestIndex];
     this.echoMarker?.setVisible(objective?.type === 'reach' && objective.target === 'echo-marker');
     this.questText.setText(objective ? `${echoQuest.name}: ${objective.description}` : `${echoQuest.name}: Complete!`);
+  }
+
+  private handlePageHide = (): void => this.persistGame();
+
+  private persistGame(): void {
+    if (!this.dialogueBox) return;
+    const decorations = {} as GameSave['decorations'];
+    for (const slot of stableDecorationSlots) {
+      decorations[slot.id] = this.decorationSelections.get(slot.id) ?? slot.defaultDecorationId;
+    }
+    const inventory: GameSave['inventory'] = {};
+    for (const [id, count] of this.inventory) inventory[id] = count;
+    const elapsedMs = this.raceCheckpointIndex === null
+      ? this.raceElapsedMs
+      : Math.max(0, this.time.now - this.raceStartedAt);
+    storeGameSave({
+      version: SAVE_VERSION,
+      appearanceId: this.appearanceId,
+      horseId: this.horseId,
+      player: { x: this.player.x, y: this.player.y },
+      horse: { x: this.horse.display.x, y: this.horse.display.y },
+      mounted: this.mounted,
+      outfitId: this.outfitId,
+      firstRideIndex: this.questIndex,
+      echoQuestIndex: this.echoQuestIndex,
+      inventory,
+      decorations,
+      race: { checkpointIndex: this.raceCheckpointIndex, elapsedMs, resultText: this.raceResultText },
+      dialogue: this.activeDialogueId,
+    });
   }
 
   private tryDismount(): void {
@@ -502,7 +607,8 @@ export class WorldScene extends Phaser.Scene {
     this.mounted = false;
     if (this.raceCheckpointIndex !== null) {
       this.raceCheckpointIndex = null;
-      this.raceText.setText(`${clearingRace.name}: Cancelled — mount up and return to the start`);
+      this.raceResultText = `${clearingRace.name}: Cancelled — mount up and return to the start`;
+      this.raceText.setText(this.raceResultText);
     }
     this.player.setPosition(spot.x, spot.y);
     this.playerBody.reset(spot.x, spot.y);
