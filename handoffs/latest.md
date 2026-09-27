@@ -13,7 +13,8 @@ T004 — Horse Entity and First Brown Quarter Horse.
 ## Verification
 
 - `npm run build` passed; Vite reported its existing large-bundle advisory.
-- Chromium showed the horse in the clearing. Arrow-key movement worked, and the player stopped at an existing obstacle. The horse remained stationary; no page errors occurred.
+- Chromium opened the game; Enter entered the clearing and showed the horse near the player.
+- Holding the right arrow moved the player to the nearby obstacle and collision stopped further movement. No page errors were observed.
 
 ## Current playable state
 
