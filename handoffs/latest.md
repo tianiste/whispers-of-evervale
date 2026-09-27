@@ -2,20 +2,22 @@
 
 ## Task completed
 
-T004 — Horse Entity and First Brown Quarter Horse.
+T005 — Mount, Ride, and Dismount Controls.
 
 ## Implementation
 
-- `src/data/horses.ts` defines the first horse as a brown Quarter Horse.
-- `src/entities/HorseEntity.ts` renders the definition as a stationary Phaser primitive placeholder.
-- `src/scenes/WorldScene.ts` places it near the player in the clearing.
+- `WorldScene` mounts the first horse with E inside interaction range; outside the range, E does nothing.
+- WASD and arrow keys control the mounted horse. The player marker stays attached, and the camera follows it.
+- Both player and horse collide with the clearing obstacles and world bounds.
+- E dismounts the player into a nearby clear position. The horse stops and stays in place; the player can mount again.
+- `HorseEntity` exposes its existing Phaser graphics object so the scene can attach the Arcade body without changing its placeholder rendering.
 
 ## Verification
 
-- `npm run build` passed; Vite reported its existing large-bundle advisory.
-- Chromium opened the game; Enter entered the clearing and showed the horse near the player.
-- Holding the right arrow moved the player to the nearby obstacle and collision stopped further movement. No page errors were observed.
+- `npm run build` passed. Vite printed its existing large-bundle advisory.
+- Chromium verified approaching, mounting, mounted movement, dismounting beside the horse, remounting, and movement stopping at an obstacle.
+- `git diff --check` passed.
 
 ## Current playable state
 
-Press Enter at the menu, then move with WASD or arrow keys. The marker remains bounded by the temporary obstacles and world edge. A stationary brown Quarter Horse placeholder stands nearby. No riding or horse interaction is implemented.
+Press Enter at the menu, move with WASD or arrows, and press E near the brown Quarter Horse to mount. While mounted, movement controls the horse and the player marker follows above it. Press E to dismount nearby; the horse remains where it was left. The world, obstacles, horse, and marker are still temporary placeholders.

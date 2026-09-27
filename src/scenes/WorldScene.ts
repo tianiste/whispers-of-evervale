@@ -6,10 +6,17 @@ const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
 const PLAYER_RADIUS = 14;
 const PLAYER_SPEED = 220;
+const HORSE_RADIUS = 25;
+const INTERACTION_RANGE = 70;
 
 export class WorldScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Arc;
   private playerBody!: Phaser.Physics.Arcade.Body;
+  private horse!: HorseEntity;
+  private horseBody!: Phaser.Physics.Arcade.Body;
+  private mounted = false;
+  private interactionKey!: Phaser.Input.Keyboard.Key;
+  private obstacles: { x: number; y: number; radius: number }[] = [];
   private movementKeys!: {
     up: Phaser.Input.Keyboard.Key;
     down: Phaser.Input.Keyboard.Key;
@@ -48,19 +55,23 @@ export class WorldScene extends Phaser.Scene {
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerBody.setCircle(PLAYER_RADIUS).setCollideWorldBounds(true);
 
-    new HorseEntity(this, firstHorse, WORLD_WIDTH / 2 + 75, WORLD_HEIGHT / 2 + 100);
+    this.horse = new HorseEntity(this, firstHorse, WORLD_WIDTH / 2 + 75, WORLD_HEIGHT / 2 + 100);
+    this.physics.add.existing(this.horse.display);
+    this.horseBody = this.horse.display.body as Phaser.Physics.Arcade.Body;
+    this.horseBody.setCircle(HORSE_RADIUS).setCollideWorldBounds(true);
 
-    const obstacles = [
+    this.obstacles = [
       { x: 650, y: 380, radius: 38 },
       { x: 1050, y: 550, radius: 48 },
       { x: 1250, y: 760, radius: 42 },
       { x: 560, y: 780, radius: 46 },
     ];
-    for (const { x, y, radius } of obstacles) {
+    for (const { x, y, radius } of this.obstacles) {
       const obstacle = this.add.circle(x, y, radius, 0x66744d).setStrokeStyle(4, 0xc8b77b);
       this.physics.add.existing(obstacle, true);
       (obstacle.body as Phaser.Physics.Arcade.StaticBody).setCircle(radius);
       this.physics.add.collider(this.player, obstacle);
+      this.physics.add.collider(this.horse.display, obstacle);
     }
 
     this.movementKeys = this.input.keyboard!.addKeys({
@@ -74,13 +85,15 @@ export class WorldScene extends Phaser.Scene {
       rightArrow: 'RIGHT',
     }) as typeof this.movementKeys;
     this.input.keyboard!.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT');
+    this.interactionKey = this.input.keyboard!.addKey('E');
+    this.input.keyboard!.addCapture('E');
 
     this.cameras.main
       .setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
       .startFollow(this.player, true, 0.12, 0.12);
 
     this.add
-      .text(16, 16, 'Move with WASD or the arrow keys', {
+      .text(16, 16, 'Move: WASD / arrows   Mount or dismount: E', {
         color: '#f4e9cf',
         fontFamily: 'Arial, sans-serif',
         fontSize: '16px',
@@ -105,6 +118,41 @@ export class WorldScene extends Phaser.Scene {
       x /= length;
       y /= length;
     }
-    this.playerBody.setVelocity(x * PLAYER_SPEED, y * PLAYER_SPEED);
+    if (Phaser.Input.Keyboard.JustDown(this.interactionKey)) {
+      if (this.mounted) this.tryDismount();
+      else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y) <= INTERACTION_RANGE) {
+        this.mounted = true;
+        this.playerBody.enable = false;
+      }
+    }
+
+    const body = this.mounted ? this.horseBody : this.playerBody;
+    body.setVelocity(x * PLAYER_SPEED, y * PLAYER_SPEED);
+    if (this.mounted) this.player.setPosition(this.horse.display.x, this.horse.display.y - 35);
+  }
+
+  private tryDismount(): void {
+    const { x, y } = this.horse.display;
+    const spots = [
+      { x: x - 50, y },
+      { x: x + 50, y },
+      { x, y: y + 50 },
+      { x, y: y - 50 },
+    ];
+    const spot = spots.find((candidate) =>
+      candidate.x >= PLAYER_RADIUS && candidate.x <= WORLD_WIDTH - PLAYER_RADIUS &&
+      candidate.y >= PLAYER_RADIUS && candidate.y <= WORLD_HEIGHT - PLAYER_RADIUS &&
+      this.obstacles.every((obstacle) =>
+        Phaser.Math.Distance.Between(candidate.x, candidate.y, obstacle.x, obstacle.y) >= PLAYER_RADIUS + obstacle.radius,
+      ),
+    );
+    if (!spot) return;
+
+    this.mounted = false;
+    this.player.setPosition(spot.x, spot.y);
+    this.playerBody.reset(spot.x, spot.y);
+    this.playerBody.setVelocity(0, 0);
+    this.playerBody.enable = true;
+    this.horseBody.setVelocity(0, 0);
   }
 }
