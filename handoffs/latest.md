@@ -18,6 +18,27 @@ T005 — Mount, Ride, and Dismount Controls.
 - Chromium verified approaching, mounting, mounted movement, dismounting beside the horse, remounting, and movement stopping at an obstacle and the world edge.
 - `git diff --check` passed.
 
+## Known issues and blocker
+
+- The horse, world, obstacles, and rider marker are temporary placeholders.
+- No active blocker is recorded.
+
+## Relevant next files
+
+- `src/main.ts`
+- `src/scenes/MainMenuScene.ts`
+- `src/scenes/WorldScene.ts`
+- `src/data/` for typed rider appearance options
+
+## Contracts to preserve
+
+- Keep the birthday vertical slice small; separate typed content data from runtime behavior.
+- Keep appearance consistent while mounting and dismounting; use existing Phaser primitives.
+
+## Next task
+
+- T006 — Character Creator: Small Playable Option Set (current task).
+
 ## Current playable state
 
 Press Enter at the menu, move with WASD or arrows, and press E near the brown Quarter Horse to mount. While mounted, movement controls the horse and the player marker follows above it. Press E to dismount nearby; the horse remains where it was left. The world, obstacles, horse, and marker are still temporary placeholders.
