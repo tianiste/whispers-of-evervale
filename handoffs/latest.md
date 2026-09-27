@@ -31,6 +31,10 @@ T010 — Minimal Item Inventory and Quest Reward.
 - Keep the birthday vertical slice small; separate typed content data from runtime behavior.
 - Keep appearance consistent while mounting and dismounting; use existing Phaser primitives.
 
+## Next task
+
+- T011 — Equip and Change a Few Rider Outfits (prepared at the autonomous checkpoint).
+
 ## Current playable state
 
 Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. Follow “A First Ride” in the HUD: talk to the keeper, reach the marked spot, collect the wildflower with E, then mount the chosen horse. Inventory shows the flower and the horse apple quest reward. Dialogue closes with Enter or Space.

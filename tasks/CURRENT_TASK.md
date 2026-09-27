@@ -1,41 +1,37 @@
-# T006 — Character Creator: Small Playable Option Set
+# T011 — Equip and Change a Few Rider Outfits
 
 agent_tier: standard
-context_budget: small
+context_budget: medium
 
 ## Goal
 
-Let the player choose a simple rider appearance before entering the clearing.
-
-## Context
-
-The menu currently enters the clearing directly. The rider is a temporary circle; the birthday slice needs a small personal choice before expanding horse selection or customization.
+Let the player switch between a few simple typed outfits and see the selected outfit on the rider.
 
 ## Acceptance Criteria
 
-- Enter from the main menu opens a character creator before the clearing.
-- Show three distinct, typed rider appearance options with a live preview.
-- The player can change the selected option and confirm to enter the clearing.
-- The selected appearance is visible on the rider in the clearing and remains consistent while mounting and dismounting.
-- The creator and preview use existing Phaser primitives; no new dependency or asset pipeline.
+- Define three small typed outfit options as content data.
+- The player can cycle/equip outfits during play using a clearly displayed keyboard control.
+- The selected outfit is visually distinguishable from the rider’s base appearance.
+- Outfit appearance stays consistent while mounted and dismounted.
+- Existing rider and horse choices, quest progress, and inventory remain intact.
+- Outfit selection is runtime-only; do not add saving or a full clothing catalog.
 
 ## Relevant Files
 
-- `src/main.ts`
-- `src/scenes/MainMenuScene.ts`
 - `src/scenes/WorldScene.ts`
-- `src/data/` for the small typed option set
+- `src/data/` for typed outfit options
+- `src/entities/` for the minimal rider placeholder rendering if needed
 
 ## Allowed Changes
 
-- Add the minimum scene, typed option data, and runtime handoff needed for this flow.
-- Reuse existing keyboard input and placeholder rendering patterns.
+- Add the minimum typed outfit data and primitive rendering needed to show the equipped choice.
+- Reuse existing keyboard input and HUD patterns.
 
 ## Do Not Implement
 
-- Horse selection, saved appearance, inventory, expanded customization, or production art.
+- Inventory equipment rules, shops, layered asset pipelines, expanded wardrobe, or persistence.
 
 ## Verification
 
 - `npm run build`
-- Launch in Chromium and verify opening the creator, changing and previewing all options, confirming, and seeing the chosen appearance in the clearing both mounted and dismounted.
+- Launch in Chromium and cycle all outfits, then verify the chosen outfit remains visible before and after mounting/dismounting.
