@@ -1,35 +1,35 @@
-# T012 — One Forgiving Checkpoint Race
+# T014 — Sunmeadow to Village Route, NPCs, and Recurring Cats
 
 agent_tier: standard
 context_budget: medium
 
 ## Goal
 
-Add one short, replayable horseback checkpoint race to the clearing.
+Connect Sunmeadow Stable to a compact Evervale Village section with a few villagers and recurring cats.
 
 ## Acceptance Criteria
 
-- Define a small typed race route and checkpoint sequence as content data.
-- A mounted player can start the race at a marked start point using a displayed keyboard control.
-- Checkpoints must be passed in order; show the current checkpoint and elapsed time while racing.
-- Finishing shows a result and grants one horse apple through the existing inventory flow.
-- Race state is runtime-only and does not change the first-ride quest flow.
+- Add a short, traversable countryside route from the existing clearing to one compact village area.
+- Define a small typed set of villagers and cats as content, separate from world rendering and interaction logic.
+- Villagers use the existing dialogue interaction; cats appear at fixed locations as incidental discoveries.
+- Keep the first-ride quest, race, stable decorations, and existing movement behavior working.
+- Use existing primitive rendering; do not add a pet system or expand beyond one village section.
 
 ## Relevant Files
 
-- `src/scenes/WorldScene.ts`
-- `src/data/` for the race route and checkpoints
+- `src/scenes/WorldScene.ts`, reusable dialogue/rendering entities
+- `src/data/` for route, villager, and cat definitions
 
 ## Allowed Changes
 
-- Add the minimum race data, marker rendering, timing, HUD, and reward behavior.
-- Reuse mounted movement and the existing inventory.
+- Add only the route, a few NPCs, and recurring cat encounters needed for the birthday slice.
+- Reuse existing Phaser movement, dialogue, and primitive rendering patterns.
 
 ## Do Not Implement
 
-- A race catalog, leaderboards, persistence, difficulty settings, or new race systems.
+- Additional regions, a pet system, large quest chains, production art, or unrelated polish.
 
 ## Verification
 
 - `npm run build`
-- Launch in Chromium, start a race while mounted, pass checkpoints in order, and verify the finish result and inventory reward.
+- Launch in Chromium, travel between stable and village, interact with a villager, observe the cats, and confirm existing stable interactions still work.

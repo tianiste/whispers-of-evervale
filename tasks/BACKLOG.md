@@ -61,7 +61,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 
 ## M7 — Decoration
 
-- [ ] T013 A few stable decoration slots with saved selections
+- [x] T013 A few stable decoration slots with session selections
   - agent_tier: standard
   - context_budget: medium
 

@@ -8,6 +8,7 @@ import { firstRideQuest, type QuestObjective } from '../data/quests';
 import { items, type ItemId } from '../data/items';
 import { outfits, type OutfitId } from '../data/outfits';
 import { clearingRace } from '../data/race';
+import { decorations, stableDecorationSlots, type StableDecorationSlotId } from '../data/decorations';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -30,6 +31,8 @@ export class WorldScene extends Phaser.Scene {
   private questIndex = 0;
   private questText!: Phaser.GameObjects.Text;
   private inventory = new Map<ItemId, number>();
+  private decorationSelections = new Map(stableDecorationSlots.map(({ id, defaultDecorationId }) => [id, defaultDecorationId]));
+  private decorationDisplays = new Map<StableDecorationSlotId, { marker: Phaser.GameObjects.Text; label: Phaser.GameObjects.Text }>();
   private inventoryText!: Phaser.GameObjects.Text;
   private outfitText!: Phaser.GameObjects.Text;
   private raceText!: Phaser.GameObjects.Text;
@@ -40,6 +43,7 @@ export class WorldScene extends Phaser.Scene {
   private interactionKey!: Phaser.Input.Keyboard.Key;
   private outfitKey!: Phaser.Input.Keyboard.Key;
   private raceKey!: Phaser.Input.Keyboard.Key;
+  private decorationKeys!: Record<StableDecorationSlotId, Phaser.Input.Keyboard.Key>;
   private raceCheckpointIndex: number | null = null;
   private raceStartedAt = 0;
   private raceLastDisplay = -1;
@@ -102,6 +106,9 @@ export class WorldScene extends Phaser.Scene {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
     }).setOrigin(0.5);
+    this.add.rectangle(KEEPER_POSITION.x, KEEPER_POSITION.y + 90, 230, 64, 0x725137)
+      .setStrokeStyle(4, 0xc8b77b);
+    this.renderStableDecorations();
     this.add.circle(clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius, 0xc8b77b, 0.18)
       .setStrokeStyle(3, 0xf4e9cf);
     this.add.text(clearingRace.start.x, clearingRace.start.y - clearingRace.start.radius - 18, 'Race Start · R', {
@@ -156,6 +163,7 @@ export class WorldScene extends Phaser.Scene {
     this.interactionKey = this.input.keyboard!.addKey('E');
     this.outfitKey = this.input.keyboard!.addKey('O');
     this.raceKey = this.input.keyboard!.addKey('R');
+    this.decorationKeys = this.input.keyboard!.addKeys({ window: 'ONE', door: 'TWO', sign: 'THREE' }) as typeof this.decorationKeys;
     this.dialogueContinueKeys = this.input.keyboard!.addKeys({ enter: 'ENTER', space: 'SPACE' }) as typeof this.dialogueContinueKeys;
     this.input.keyboard!.addCapture('E');
 
@@ -188,6 +196,10 @@ export class WorldScene extends Phaser.Scene {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
     }).setScrollFactor(0);
+    this.add.text(16, 199, 'Stable decorations: 1 Window   2 Door   3 Sign', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+      backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
+    }).setScrollFactor(0);
     this.updateOutfitText();
     this.updateQuestText();
     this.updateInventoryText();
@@ -209,6 +221,9 @@ export class WorldScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.outfitKey)) this.cycleOutfit();
     if (Phaser.Input.Keyboard.JustDown(this.raceKey)) this.tryStartRace();
+    for (const slot of stableDecorationSlots) {
+      if (Phaser.Input.Keyboard.JustDown(this.decorationKeys[slot.id])) this.cycleDecoration(slot.id);
+    }
 
     const up = this.movementKeys.up.isDown || this.movementKeys.upArrow.isDown;
     const down = this.movementKeys.down.isDown || this.movementKeys.downArrow.isDown;
@@ -286,6 +301,35 @@ export class WorldScene extends Phaser.Scene {
     const outfit = outfits[(index + 1) % outfits.length] ?? outfits[0];
     this.outfitId = outfit.id;
     this.updateOutfitText();
+  }
+
+  private cycleDecoration(slotId: StableDecorationSlotId): void {
+    const selectedId = this.decorationSelections.get(slotId);
+    const index = decorations.findIndex(({ id }) => id === selectedId);
+    const decoration = decorations[(index + 1) % decorations.length] ?? decorations[0];
+    this.decorationSelections.set(slotId, decoration.id);
+    const display = this.decorationDisplays.get(slotId);
+    display?.marker.setText(decoration.symbol).setColor(decoration.color);
+    display?.label.setText(decoration.name);
+  }
+
+  private renderStableDecorations(): void {
+    for (const slot of stableDecorationSlots) {
+      const x = KEEPER_POSITION.x + slot.x;
+      const y = KEEPER_POSITION.y + slot.y;
+      const decorationId = this.decorationSelections.get(slot.id) ?? slot.defaultDecorationId;
+      const decoration = decorations.find(({ id }) => id === decorationId) ?? decorations[0];
+      const marker = this.add.text(x, y, decoration.symbol, {
+        color: decoration.color, fontFamily: 'Arial, sans-serif', fontSize: '24px',
+      }).setOrigin(0.5);
+      const label = this.add.text(x, y + 22, decoration.name, {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '11px',
+      }).setOrigin(0.5);
+      this.add.text(x, y - 21, slot.name, {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '11px',
+      }).setOrigin(0.5);
+      this.decorationDisplays.set(slot.id, { marker, label });
+    }
   }
 
   private tryStartRace(): void {

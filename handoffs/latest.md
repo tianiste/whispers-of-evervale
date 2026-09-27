@@ -2,23 +2,16 @@
 
 ## Task completed
 
-T012 — One Forgiving Checkpoint Race.
+T013 — A Few Stable Decoration Slots with Session Selections.
 
 ## Implementation and verification
 
-- Added the typed Clearing Canter route in `src/data/race.ts`, with a start gate and three numbered checkpoints. R starts it while mounted at the gate; the HUD shows ordered progress and elapsed time.
-- Completing the route shows the finish time and adds one horse apple through the existing inventory flow. Dismounting cancels an active race; race state is runtime-only.
-- `npm run build` and `git diff --check` passed. Chromium verified checkpoint progress, finish result, and one horse apple reward. Vite printed its existing large-bundle advisory.
+- Added three typed stable decoration slots and three options. Keys 1, 2, and 3 cycle Window, Door, and Sign selections; the stable rendering updates immediately and selections last for the current game session.
+- `npm run build` and `git diff --check` passed. Chromium verified all slots change and remain selected after moving away from and back to the stable. Vite printed its existing large-bundle advisory.
 
-## Contracts to preserve
+## Current task — T014
 
-- Keep the birthday vertical slice small and typed content separate from runtime behavior.
-- Keep outfit choice runtime-only and preserve the rider appearance through mount transitions.
-- Keep race route content typed and separate from runtime behavior; preserve the first-ride quest flow.
-
-## Next task
-
-- T013 — A Few Stable Decoration Slots with Saved Selections.
+T013 added three stable slots with session-only selections. Keys 1, 2, and 3 change Window, Door, and Sign decorations; T017 owns durable saving. Build passed; Chromium showed updated selections after leaving and returning to the stable. The existing Vite bundle-size advisory remains.
 
 ## Current playable state
 
