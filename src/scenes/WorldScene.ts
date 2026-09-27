@@ -6,6 +6,7 @@ import { stableKeeperGreeting } from '../data/dialogue';
 import { DialogueBox } from '../ui/DialogueBox';
 import { firstRideQuest, type QuestObjective } from '../data/quests';
 import { items, type ItemId } from '../data/items';
+import { outfits, type OutfitId } from '../data/outfits';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -19,6 +20,7 @@ const QUEST_INTERACTION_RANGE = 42;
 export class WorldScene extends Phaser.Scene {
   private appearanceId: RiderAppearanceId = 'cream';
   private horseId: HorseId = 'brown-quarter-horse';
+  private outfitId: OutfitId = outfits[0].id;
   private player!: Phaser.GameObjects.Arc;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private horse!: HorseEntity;
@@ -28,11 +30,13 @@ export class WorldScene extends Phaser.Scene {
   private questText!: Phaser.GameObjects.Text;
   private inventory = new Map<ItemId, number>();
   private inventoryText!: Phaser.GameObjects.Text;
+  private outfitText!: Phaser.GameObjects.Text;
   private wildflower!: Phaser.GameObjects.Arc;
   private wildflowerLabel!: Phaser.GameObjects.Text;
   private dialogueBox!: DialogueBox;
   private dialogueContinueKeys!: { enter: Phaser.Input.Keyboard.Key; space: Phaser.Input.Keyboard.Key };
   private interactionKey!: Phaser.Input.Keyboard.Key;
+  private outfitKey!: Phaser.Input.Keyboard.Key;
   private obstacles: { x: number; y: number; radius: number }[] = [];
   private movementKeys!: {
     up: Phaser.Input.Keyboard.Key;
@@ -52,6 +56,7 @@ export class WorldScene extends Phaser.Scene {
   init(data: { appearanceId?: RiderAppearanceId; horseId?: HorseId }): void {
     this.appearanceId = getRiderAppearance(data.appearanceId).id;
     this.horseId = getHorse(data.horseId).id;
+    this.outfitId = outfits[0].id;
     this.questIndex = 0;
     this.inventory.clear();
   }
@@ -128,6 +133,7 @@ export class WorldScene extends Phaser.Scene {
     }) as typeof this.movementKeys;
     this.input.keyboard!.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT');
     this.interactionKey = this.input.keyboard!.addKey('E');
+    this.outfitKey = this.input.keyboard!.addKey('O');
     this.dialogueContinueKeys = this.input.keyboard!.addKeys({ enter: 'ENTER', space: 'SPACE' }) as typeof this.dialogueContinueKeys;
     this.input.keyboard!.addCapture('E');
 
@@ -136,7 +142,7 @@ export class WorldScene extends Phaser.Scene {
       .startFollow(this.player, true, 0.12, 0.12);
 
     this.add
-      .text(16, 16, 'Move: WASD / arrows   Talk / mount / dismount: E', {
+      .text(16, 16, 'Move: WASD / arrows   Talk / mount / dismount: E   Change outfit: O', {
         color: '#f4e9cf',
         fontFamily: 'Arial, sans-serif',
         fontSize: '16px',
@@ -152,6 +158,11 @@ export class WorldScene extends Phaser.Scene {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
     }).setScrollFactor(0);
+    this.outfitText = this.add.text(16, 127, '', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+      backgroundColor: '#173b36cc', padding: { x: 10, y: 6 },
+    }).setScrollFactor(0);
+    this.updateOutfitText();
     this.updateQuestText();
     this.updateInventoryText();
     this.dialogueBox = new DialogueBox(this);
@@ -169,6 +180,8 @@ export class WorldScene extends Phaser.Scene {
       }
       return;
     }
+
+    if (Phaser.Input.Keyboard.JustDown(this.outfitKey)) this.cycleOutfit();
 
     const up = this.movementKeys.up.isDown || this.movementKeys.upArrow.isDown;
     const down = this.movementKeys.down.isDown || this.movementKeys.downArrow.isDown;
@@ -238,6 +251,19 @@ export class WorldScene extends Phaser.Scene {
       .filter(({ id }) => (this.inventory.get(id) ?? 0) > 0)
       .map(({ id, name }) => `${name} ×${this.inventory.get(id)}`);
     this.inventoryText.setText(contents.length ? `Inventory: ${contents.join(' · ')}` : 'Inventory: empty');
+  }
+
+  private cycleOutfit(): void {
+    const index = outfits.findIndex(({ id }) => id === this.outfitId);
+    const outfit = outfits[(index + 1) % outfits.length] ?? outfits[0];
+    this.outfitId = outfit.id;
+    this.updateOutfitText();
+  }
+
+  private updateOutfitText(): void {
+    const outfit = outfits.find(({ id }) => id === this.outfitId) ?? outfits[0];
+    this.outfitText.setText(`Outfit: ${outfit.name} (O)`);
+    this.player.setStrokeStyle(5, outfit.color);
   }
 
   private updateQuestText(): void {

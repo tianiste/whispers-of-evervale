@@ -2,39 +2,23 @@
 
 ## Task completed
 
-T010 — Minimal Item Inventory and Quest Reward.
+T011 — Equip and Change a Few Rider Outfits.
 
-## Implementation
+## Implementation and verification
 
-- Item definitions in `src/data/items.ts` use stable IDs for the wildflower and horse apple.
-- Collecting the flower adds one item and removes both its marker and label. Completing the quest adds one horse apple.
-- The pinned HUD shows item counts; inventory state is runtime-only and resets with the scene.
-
-## Verification
-
-- `npm run build` passed. Vite printed its existing large-bundle advisory.
-- Chromium verified the wildflower count after collection, one horse apple after quest completion, and that later interactions do not duplicate the reward.
-- `git diff --check` passed.
-
-## Known issues and blocker
-
-- The horse, world, obstacles, and rider marker are temporary placeholders.
-- No active blocker is recorded.
-
-## Relevant next files
-
-- `src/scenes/WorldScene.ts`
-- `src/data/quests.ts` and `src/data/items.ts`
+- Added three typed placeholder outfits in `src/data/outfits.ts`; O cycles them and the HUD displays the current outfit.
+- Outfit color is the rider circle's outline, so it follows the existing rider through mounting and dismounting. Rider fill, horse choice, quest, and inventory logic are unchanged.
+- `npm run build` and `git diff --check` passed. Chromium verified all three options and Berry persistence while mounted and after dismounting. Vite printed its existing large-bundle advisory.
 
 ## Contracts to preserve
 
-- Keep the birthday vertical slice small; separate typed content data from runtime behavior.
-- Keep appearance consistent while mounting and dismounting; use existing Phaser primitives.
+- Keep the birthday vertical slice small and typed content separate from runtime behavior.
+- Keep outfit choice runtime-only and preserve the rider appearance through mount transitions.
 
 ## Next task
 
-- T011 — Equip and Change a Few Rider Outfits (prepared at the autonomous checkpoint).
+- T012 — One forgiving checkpoint race and result/reward.
 
 ## Current playable state
 
-Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. Follow “A First Ride” in the HUD: talk to the keeper, reach the marked spot, collect the wildflower with E, then mount the chosen horse. Inventory shows the flower and the horse apple quest reward. Dialogue closes with Enter or Space.
+Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. In the clearing, move with WASD/arrows, interact with E, and cycle Meadow, Berry, and Sky outfits with O. Follow “A First Ride” in the HUD; dialogue closes with Enter or Space. Inventory and outfit choice reset with the scene.

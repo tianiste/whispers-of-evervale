@@ -49,7 +49,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 - [x] T010 Minimal typed item inventory/reward flow
   - agent_tier: standard
   - context_budget: small
-- [ ] T011 Equip and change a few rider outfits
+- [x] T011 Equip and change a few rider outfits
   - agent_tier: standard
   - context_budget: medium
 
