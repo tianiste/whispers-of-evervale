@@ -25,7 +25,7 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - The mounted rider can start the typed Clearing Canter at its marked gate, pass three numbered checkpoints in order, and earn one horse apple on completion. The HUD shows checkpoint progress and elapsed time; race state is runtime-only.
 - Three typed stable decoration slots each cycle through flower box, lantern, and wreath options with number keys. The stable display updates immediately; selections last for the current game session and reset on restart until versioned saves are implemented.
 - A marked dirt lane connects the stable clearing to a compact village with two placeholder buildings, two typed villagers using the dialogue box, and two fixed-position cat cameos.
-- Completing “A First Ride” unlocks the short “A Familiar Echo” quest: the Stable Keeper and Trail Guide reveal clues in order, leading to an old oak and Hana’s editable birthday note signed by Tian. The quest and finale are runtime-only.
+- Completing “A First Ride” unlocks the short “A Familiar Echo” quest: the Stable Keeper and Trail Guide reveal clues in order, leading to an old oak and Hana’s editable birthday note signed by Tian. It grants one horse apple, then returns to free roam after the note closes. Quest, inventory, and finale state are runtime-only.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths

@@ -374,6 +374,7 @@ export class WorldScene extends Phaser.Scene {
       if (this.questIndex === firstRideQuest.objectives.length) this.addItem(firstRideQuest.reward);
     } else {
       this.echoQuestIndex += 1;
+      if (this.echoQuestIndex === echoQuest.objectives.length) this.addItem(echoQuest.reward);
     }
     this.updateQuestText();
   }

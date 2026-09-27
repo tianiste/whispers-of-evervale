@@ -73,7 +73,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 - [x] T015 Echo mystery quest and personalized finale configuration/content
   - agent_tier: orchestrator
   - context_budget: medium
-- [ ] T016 Continue free roam and finale unlock rewards
+- [x] T016 Continue free roam and finale unlock rewards
   - agent_tier: standard
   - context_budget: small
 

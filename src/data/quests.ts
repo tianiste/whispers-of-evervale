@@ -20,6 +20,7 @@ export const firstRideQuest = {
 
 export const echoQuest = {
   name: 'A Familiar Echo',
+  reward: 'horse-apple' as ItemId,
   objectives: [
     { type: 'talk', target: 'stable-keeper', description: 'Ask the Stable Keeper about the hoofprints' },
     { type: 'talk', target: 'trail-guide', description: 'Ask the Trail Guide about the bell' },
