@@ -2,17 +2,13 @@
 
 ## Task completed
 
-T014 — Sunmeadow to Village Route, NPCs, and Recurring Cats.
+T015 — Echo Mystery and Personalized Finale.
 
 ## Implementation and verification
 
-- Added a marked dirt lane, two placeholder buildings, two typed villagers using the shared dialogue box, and two fixed cat cameos.
-- `npm run build` and `git diff --check` passed. Chromium verified the route, Village Baker dialogue, both cats, and the Stable Keeper dialogue after returning. Vite printed its existing large-bundle advisory; headless Chromium also emitted software-WebGL warnings and a missing favicon 404.
-
-## Current blocker — T015
-
-`docs/PERSONALIZATION.md` says not to invent the final message or developer name. Neither value is provided, so T015 cannot be completed without those personal content values. Recipient Hana is known and the optional nickname can remain empty.
+- Added the ordered Echo clue quest and a separate editable birthday gift configuration for Hana, with nickname empty and the user-provided Slovenian message polished to “Vse najboljše, draga. Rad te imam in želim ti res lep dan.” It is signed by Tian.
+- `npm run build` and `git diff --check` passed. Chromium verified first-ride progression/reward, the race/reward, both Echo clues, and the final dialogue text. Build retains its existing large-bundle advisory.
 
 ## Current playable state
 
-Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. In the clearing, move with WASD/arrows, interact with E, cycle outfits with O, and start the Clearing Canter with R while mounted at its marked gate. Follow “A First Ride” in the HUD; dialogue closes with Enter or Space. Inventory, outfit, and race state reset with the scene.
+The menu and character creator lead into the clearing as before. Complete “A First Ride” to unlock “A Familiar Echo”; talk to the Stable Keeper, then the Trail Guide, and follow the HUD to the old oak. The personal note appears in the existing dialogue box. Inventory, quest, outfit, and race state reset with the scene.

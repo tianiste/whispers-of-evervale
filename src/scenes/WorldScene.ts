@@ -2,9 +2,10 @@ import Phaser from 'phaser';
 import { HorseEntity } from '../entities/HorseEntity';
 import { getHorse, type HorseId } from '../data/horses';
 import { getRiderAppearance, type RiderAppearanceId } from '../data/riderAppearances';
-import { stableKeeperGreeting } from '../data/dialogue';
+import { echoClues, stableKeeperGreeting } from '../data/dialogue';
 import { DialogueBox } from '../ui/DialogueBox';
-import { firstRideQuest, type QuestObjective } from '../data/quests';
+import { echoQuest, firstRideQuest, type QuestObjective } from '../data/quests';
+import { birthdayFinale } from '../data/birthdayGift';
 import { items, type ItemId } from '../data/items';
 import { outfits, type OutfitId } from '../data/outfits';
 import { clearingRace } from '../data/race';
@@ -30,6 +31,7 @@ export class WorldScene extends Phaser.Scene {
   private horseBody!: Phaser.Physics.Arcade.Body;
   private mounted = false;
   private questIndex = 0;
+  private echoQuestIndex = 0;
   private questText!: Phaser.GameObjects.Text;
   private inventory = new Map<ItemId, number>();
   private decorationSelections = new Map(stableDecorationSlots.map(({ id, defaultDecorationId }) => [id, defaultDecorationId]));
@@ -39,6 +41,7 @@ export class WorldScene extends Phaser.Scene {
   private raceText!: Phaser.GameObjects.Text;
   private wildflower!: Phaser.GameObjects.Arc;
   private wildflowerLabel!: Phaser.GameObjects.Text;
+  private echoMarker!: Phaser.GameObjects.Container;
   private dialogueBox!: DialogueBox;
   private dialogueContinueKeys!: { enter: Phaser.Input.Keyboard.Key; space: Phaser.Input.Keyboard.Key };
   private interactionKey!: Phaser.Input.Keyboard.Key;
@@ -69,6 +72,7 @@ export class WorldScene extends Phaser.Scene {
     this.horseId = getHorse(data.horseId).id;
     this.outfitId = outfits[0].id;
     this.questIndex = 0;
+    this.echoQuestIndex = 0;
     this.raceCheckpointIndex = null;
     this.raceLastDisplay = -1;
     this.inventory.clear();
@@ -136,6 +140,16 @@ export class WorldScene extends Phaser.Scene {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
         backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
       }).setOrigin(0.5);
+    }
+    const echoMarker = echoQuest.objectives[2];
+    if (echoMarker?.type === 'reach') {
+      this.echoMarker = this.add.container(echoMarker.x, echoMarker.y);
+      this.echoMarker.add(this.add.circle(0, 0, 26, 0x8baf82, 0.3).setStrokeStyle(3, 0xc8b77b));
+      this.echoMarker.add(this.add.text(0, -38, 'Old Oak', {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+        backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
+      }).setOrigin(0.5));
+      this.echoMarker.setVisible(false);
     }
     this.obstacles = [
       { x: 650, y: 380, radius: 38 },
@@ -245,8 +259,13 @@ export class WorldScene extends Phaser.Scene {
         this.advanceQuest('interact', 'chosen-horse');
       }
       else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, KEEPER_POSITION.x, KEEPER_POSITION.y) <= INTERACTION_RANGE) {
-        this.advanceQuest('talk', 'stable-keeper');
-        this.dialogueBox.show(stableKeeperGreeting);
+        if (this.echoQuestAvailable('stable-keeper')) {
+          this.dialogueBox.show(echoClues['stable-keeper']);
+          this.advanceQuest('talk', 'stable-keeper');
+        } else {
+          this.advanceQuest('talk', 'stable-keeper');
+          this.dialogueBox.show(stableKeeperGreeting);
+        }
       }
       else if (this.talkToNearbyVillager()) {}
       else if (this.wildflower?.active && this.isNear(this.player.x, this.player.y, this.wildflower.x, this.wildflower.y, QUEST_INTERACTION_RANGE)) {
@@ -275,8 +294,19 @@ export class WorldScene extends Phaser.Scene {
   private talkToNearbyVillager(): boolean {
     const villager = villagers.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, INTERACTION_RANGE));
     if (!villager) return false;
+    if (villager.id === 'trail-guide' && this.echoQuestAvailable('trail-guide')) {
+      this.dialogueBox.show(echoClues['trail-guide']);
+      this.advanceQuest('talk', 'trail-guide');
+      return true;
+    }
     this.dialogueBox.show(villager.dialogue);
     return true;
+  }
+
+  private echoQuestAvailable(target: 'stable-keeper' | 'trail-guide'): boolean {
+    if (this.questIndex < firstRideQuest.objectives.length) return false;
+    const objective = echoQuest.objectives[this.echoQuestIndex];
+    return objective?.type === 'talk' && objective.target === target;
   }
 
   private renderVillage(): void {
@@ -324,17 +354,27 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private checkReachObjective(): void {
-    const objective = firstRideQuest.objectives[this.questIndex];
+    const objective = this.questIndex < firstRideQuest.objectives.length
+      ? firstRideQuest.objectives[this.questIndex]
+      : echoQuest.objectives[this.echoQuestIndex];
     if (objective?.type === 'reach' && this.isNear(this.player.x, this.player.y, objective.x, objective.y, QUEST_INTERACTION_RANGE)) {
       this.advanceQuest(objective.type, objective.target);
+      if (objective.target === 'echo-marker') this.dialogueBox.show(birthdayFinale);
     }
   }
 
   private advanceQuest(type: QuestObjective['type'], target: string): void {
-    const objective = firstRideQuest.objectives[this.questIndex];
+    const firstRideActive = this.questIndex < firstRideQuest.objectives.length;
+    const objective = firstRideActive
+      ? firstRideQuest.objectives[this.questIndex]
+      : echoQuest.objectives[this.echoQuestIndex];
     if (!objective || objective.type !== type || objective.target !== target) return;
-    this.questIndex += 1;
-    if (this.questIndex === firstRideQuest.objectives.length) this.addItem(firstRideQuest.reward);
+    if (firstRideActive) {
+      this.questIndex += 1;
+      if (this.questIndex === firstRideQuest.objectives.length) this.addItem(firstRideQuest.reward);
+    } else {
+      this.echoQuestIndex += 1;
+    }
     this.updateQuestText();
   }
 
@@ -431,8 +471,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private updateQuestText(): void {
-    const objective = firstRideQuest.objectives[this.questIndex];
-    this.questText.setText(objective ? `${firstRideQuest.name}: ${objective.description}` : `${firstRideQuest.name}: Complete!`);
+    if (this.questIndex < firstRideQuest.objectives.length) {
+      const objective = firstRideQuest.objectives[this.questIndex];
+      this.questText.setText(objective ? `${firstRideQuest.name}: ${objective.description}` : `${firstRideQuest.name}: Complete!`);
+      return;
+    }
+    const objective = echoQuest.objectives[this.echoQuestIndex];
+    this.echoMarker?.setVisible(objective?.type === 'reach' && objective.target === 'echo-marker');
+    this.questText.setText(objective ? `${echoQuest.name}: ${objective.description}` : `${echoQuest.name}: Complete!`);
   }
 
   private tryDismount(): void {

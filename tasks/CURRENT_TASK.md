@@ -1,37 +1,34 @@
-# T015 — Echo Mystery and Personalized Finale
+# T016 — Echo Completion Reward and Post-Finale Free Roam
 
-agent_tier: orchestrator
-context_budget: medium
-
-Status: blocked pending the user-provided finale message and developer name.
+agent_tier: standard
+context_budget: small
 
 ## Goal
 
-Add the Echo mystery quest and personalized birthday finale configuration/content.
+Reward completion of “A Familiar Echo” with one existing horse apple and let the player continue exploring after closing Hana’s finale note.
 
 ## Acceptance Criteria
 
-- Add one short Echo mystery quest that reveals the mystery gradually through existing quest and dialogue patterns.
-- Keep recipient-specific text in editable gift configuration, separate from game logic.
-- Use Hana as the recipient; leave optional nickname empty unless supplied.
-- Use the user-provided final message and developer name without inventing either.
-- Keep the quest and finale within the birthday slice and preserve existing gameplay.
+- Reaching the old oak completes the Echo quest and grants exactly one horse apple.
+- The finale note remains visible until Enter or Space closes it; afterward, normal movement and interactions resume.
+- Re-triggering nearby interactions or revisiting the oak does not grant additional completion rewards.
+- First-ride and race rewards remain unchanged.
 
 ## Relevant Files
 
-- `src/data/` for quest, dialogue, and gift configuration
-- `src/scenes/WorldScene.ts` and existing dialogue/quest runtime
+- `src/data/quests.ts`
+- `src/scenes/WorldScene.ts`
 
 ## Allowed Changes
 
-- Add only the Echo quest flow and configurable finale content needed for the slice.
-- Reuse existing typed content, quest progress, dialogue, and reward patterns.
+- Reuse the typed item inventory and existing quest completion flow.
+- Keep the reward runtime-only like current inventory.
 
 ## Do Not Implement
 
-- Additional regions, a large quest system, or hard-coded/invented personal finale values.
+- Saving, new item types, additional regions, or expanded quest infrastructure.
 
 ## Verification
 
 - `npm run build`
-- Launch in Chromium, complete the Echo quest, and verify finale configuration is used without changing the existing first-ride and race flows.
+- In Chromium, complete the Echo quest, verify one additional horse apple, close the note, then move and interact normally.

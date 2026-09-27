@@ -70,7 +70,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 - [x] T014 Sunmeadow-to-village route, NPCs, recurring cats
   - agent_tier: standard
   - context_budget: medium
-- [ ] T015 Echo mystery quest and personalized finale configuration/content
+- [x] T015 Echo mystery quest and personalized finale configuration/content
   - agent_tier: orchestrator
   - context_budget: medium
 - [ ] T016 Continue free roam and finale unlock rewards
