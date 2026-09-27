@@ -4,6 +4,7 @@ import { getHorse, type HorseId } from '../data/horses';
 import { getRiderAppearance, type RiderAppearanceId } from '../data/riderAppearances';
 import { stableKeeperGreeting } from '../data/dialogue';
 import { DialogueBox } from '../ui/DialogueBox';
+import { firstRideQuest, type QuestObjective } from '../data/quests';
 
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
@@ -12,6 +13,7 @@ const PLAYER_SPEED = 220;
 const HORSE_RADIUS = 25;
 const INTERACTION_RANGE = 70;
 const KEEPER_POSITION = { x: WORLD_WIDTH / 2 - 100, y: WORLD_HEIGHT / 2 };
+const QUEST_INTERACTION_RANGE = 42;
 
 export class WorldScene extends Phaser.Scene {
   private appearanceId: RiderAppearanceId = 'cream';
@@ -21,6 +23,9 @@ export class WorldScene extends Phaser.Scene {
   private horse!: HorseEntity;
   private horseBody!: Phaser.Physics.Arcade.Body;
   private mounted = false;
+  private questIndex = 0;
+  private questText!: Phaser.GameObjects.Text;
+  private wildflower!: Phaser.GameObjects.Arc;
   private dialogueBox!: DialogueBox;
   private dialogueContinueKeys!: { enter: Phaser.Input.Keyboard.Key; space: Phaser.Input.Keyboard.Key };
   private interactionKey!: Phaser.Input.Keyboard.Key;
@@ -43,6 +48,7 @@ export class WorldScene extends Phaser.Scene {
   init(data: { appearanceId?: RiderAppearanceId; horseId?: HorseId }): void {
     this.appearanceId = getRiderAppearance(data.appearanceId).id;
     this.horseId = getHorse(data.horseId).id;
+    this.questIndex = 0;
   }
 
   create(): void {
@@ -78,6 +84,19 @@ export class WorldScene extends Phaser.Scene {
       color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
       backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
     }).setOrigin(0.5);
+    const marker = firstRideQuest.objectives[1];
+    if (marker?.type === 'reach') {
+      this.add.circle(marker.x, marker.y, 24, 0xc8b77b, 0.35).setStrokeStyle(3, 0xf4e9cf);
+      this.add.circle(marker.x, marker.y, 6, 0xf4e9cf);
+    }
+    const flower = firstRideQuest.objectives[2];
+    if (flower?.type === 'collect') {
+      this.wildflower = this.add.circle(flower.x, flower.y, 11, 0xd78fa8).setStrokeStyle(3, 0xf4e9cf);
+      this.add.text(flower.x, flower.y - 22, 'Wildflower', {
+        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
+        backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
+      }).setOrigin(0.5);
+    }
     this.obstacles = [
       { x: 650, y: 380, radius: 38 },
       { x: 1050, y: 550, radius: 48 },
@@ -120,6 +139,11 @@ export class WorldScene extends Phaser.Scene {
         padding: { x: 10, y: 8 },
       })
       .setScrollFactor(0);
+    this.questText = this.add.text(16, 54, '', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '15px',
+      backgroundColor: '#173b36cc', padding: { x: 10, y: 7 },
+    }).setScrollFactor(0);
+    this.updateQuestText();
     this.dialogueBox = new DialogueBox(this);
   }
 
@@ -147,20 +171,53 @@ export class WorldScene extends Phaser.Scene {
       x /= length;
       y /= length;
     }
+    this.checkReachObjective();
     if (Phaser.Input.Keyboard.JustDown(this.interactionKey)) {
-      if (this.mounted) this.tryDismount();
+      if (this.mounted) {
+        this.tryDismount();
+        this.advanceQuest('interact', 'chosen-horse');
+      }
       else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, KEEPER_POSITION.x, KEEPER_POSITION.y) <= INTERACTION_RANGE) {
+        this.advanceQuest('talk', 'stable-keeper');
         this.dialogueBox.show(stableKeeperGreeting);
+      }
+      else if (this.wildflower?.active && this.isNear(this.player.x, this.player.y, this.wildflower.x, this.wildflower.y, QUEST_INTERACTION_RANGE)) {
+        this.wildflower.destroy();
+        this.advanceQuest('collect', 'wildflower');
       }
       else if (Phaser.Math.Distance.Between(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y) <= INTERACTION_RANGE) {
         this.mounted = true;
         this.playerBody.enable = false;
+        this.advanceQuest('interact', 'chosen-horse');
       }
     }
 
     const body = this.mounted ? this.horseBody : this.playerBody;
     body.setVelocity(x * PLAYER_SPEED, y * PLAYER_SPEED);
     if (this.mounted) this.player.setPosition(this.horse.display.x, this.horse.display.y - 35);
+  }
+
+  private isNear(x: number, y: number, targetX: number, targetY: number, range: number): boolean {
+    return Phaser.Math.Distance.Between(x, y, targetX, targetY) <= range;
+  }
+
+  private checkReachObjective(): void {
+    const objective = firstRideQuest.objectives[this.questIndex];
+    if (objective?.type === 'reach' && this.isNear(this.player.x, this.player.y, objective.x, objective.y, QUEST_INTERACTION_RANGE)) {
+      this.advanceQuest(objective.type, objective.target);
+    }
+  }
+
+  private advanceQuest(type: QuestObjective['type'], target: string): void {
+    const objective = firstRideQuest.objectives[this.questIndex];
+    if (!objective || objective.type !== type || objective.target !== target) return;
+    this.questIndex += 1;
+    this.updateQuestText();
+  }
+
+  private updateQuestText(): void {
+    const objective = firstRideQuest.objectives[this.questIndex];
+    this.questText.setText(objective ? `${firstRideQuest.name}: ${objective.description}` : `${firstRideQuest.name}: Complete!`);
   }
 
   private tryDismount(): void {

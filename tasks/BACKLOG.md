@@ -40,7 +40,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 - [x] T008 Reusable interaction/dialogue slice
   - agent_tier: standard
   - context_budget: medium
-- [ ] T009 Quest progress for talk, reach, collect, and interact
+- [x] T009 Quest progress for talk, reach, collect, and interact
   - agent_tier: standard
   - context_budget: medium
 

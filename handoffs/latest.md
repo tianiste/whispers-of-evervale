@@ -2,18 +2,18 @@
 
 ## Task completed
 
-T008 — Reusable Interaction and Dialogue Slice.
+T009 — First Ride Quest Progress.
 
 ## Implementation
 
-- A placeholder Stable Keeper near the starting area opens a typed greeting when E is pressed in range.
-- `DialogueBox` renders speaker, message, and close instructions above the world. Enter or Space closes it.
-- Both rider and horse movement pause while dialogue is visible, then controls resume.
+- Typed `A First Ride` objectives progress in order: talk to the keeper, reach the marked circle, collect the wildflower with E, and interact with the chosen horse.
+- `WorldScene` updates a pinned HUD tracker; completing the final objective displays a completion message.
+- Quest progress is runtime-only. The collector is removed when gathered, and the horse interaction uses the existing mount/dismount flow.
 
 ## Verification
 
 - `npm run build` passed. Vite printed its existing large-bundle advisory.
-- Chromium verified E does nothing outside the keeper range, opens dialogue inside range, blocks movement while open, closes with Space, restores movement, and still mounts the selected horse.
+- Chromium completed all four objectives in order and observed each HUD update through “A First Ride: Complete!”.
 - `git diff --check` passed.
 
 ## Known issues and blocker
@@ -24,8 +24,7 @@ T008 — Reusable Interaction and Dialogue Slice.
 ## Relevant next files
 
 - `src/scenes/WorldScene.ts`
-- `src/ui/DialogueBox.ts`
-- `src/data/dialogue.ts`
+- `src/data/quests.ts`
 
 ## Contracts to preserve
 
@@ -34,4 +33,4 @@ T008 — Reusable Interaction and Dialogue Slice.
 
 ## Current playable state
 
-Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. In the clearing, press E near the Stable Keeper to read the greeting, Enter or Space to close it, and E near the selected horse to mount or dismount. The world and characters remain placeholders.
+Press Enter at the menu, choose a rider with left/right and a horse with up/down, then confirm with Enter. Follow “A First Ride” in the HUD: talk to the keeper, reach the marked spot, collect the wildflower with E, then mount the chosen horse. Dialogue closes with Enter or Space.

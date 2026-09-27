@@ -19,6 +19,7 @@ Phaser 3 + strict TypeScript + Vite + npm, static desktop browser target. `npm r
 - The player can mount the first horse with E within interaction range, ride with WASD/arrows, and dismount into a nearby clear spot. Horse and player collide with clearing obstacles and world bounds; the camera follows the mounted rider.
 - The character creator offers three typed placeholder rider colors and three typed first-horse options with live previews. Confirmed rider and horse IDs are passed into the clearing; the chosen rider stays consistent through mounting/dismounting, and the selected horse definition drives its appearance.
 - A nearby placeholder stable keeper opens one typed greeting in a reusable dialogue box. While the box is open, player and horse movement pause; Enter or Space closes it.
+- The typed “A First Ride” quest tracks talk, reach, collect, and horse interaction objectives in order, with a HUD tracker and completion message. Progress lasts only for the current scene session.
 - Product, art, world, quest, customization, personalization, data, and agent contracts are documented.
 
 ## Key paths
