@@ -1,33 +1,33 @@
-# T018 — End-to-End Birthday Slice Stability Pass
+# T019 — Birthday Slice Atmosphere Polish
 
 agent_tier: standard
 context_budget: medium
 
 ## Goal
 
-Verify the birthday slice works from character creation through the finale and save recovery, fixing only issues that block those flows.
+Add a restrained atmosphere pass to the existing stable clearing using the established pixel-art direction: subtle ambience, a small idle animation, and quiet environmental audio.
 
 ## Acceptance Criteria
 
-- Verify character/horse selection, first-ride objectives and reward, and race checkpoint order/reward.
-- Verify Echo unlocks after the first ride, clues progress in order, and the finale note/reward complete correctly.
-- Verify a reload resumes saved progress and malformed or unsupported data starts a new game.
-- Confirm no uncaught browser exceptions during these flows.
+- The clearing has a subtle ambient visual effect and an idle motion cue that fit the documented style.
+- Environmental audio is quiet, loops cleanly, and does not interfere with interaction or race feedback.
+- Existing controls, quest progression, saving, and race behavior remain unchanged.
+- No new dependency is added unless the current platform cannot provide the needed behavior.
 
 ## Relevant Files
 
-- `src/scenes/`
-- `src/data/`
+- `src/scenes/WorldScene.ts`
+- `src/data/` and `public/assets/` for any required content
 
 ## Allowed Changes
 
-- Fix only regressions found in the end-to-end flow.
+- Add only the small visual and audio assets or runtime behavior needed for this atmosphere pass.
 
 ## Do Not Implement
 
-- New gameplay systems, regions, art, or dependencies.
+- New regions, systems, or broad art replacement.
 
 ## Verification
 
 - `npm run build`
-- Complete the flows in Chromium and inspect browser exceptions.
+- In Chromium, verify the ambience, idle motion, audio playback, and existing gameplay controls.

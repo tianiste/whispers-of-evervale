@@ -2,14 +2,14 @@
 
 ## Task completed
 
-T017 — Versioned Local Save/Load and Recovery.
+T018 — End-to-End Birthday Slice Stability Pass.
 
 ## Implementation and verification
 
-- Added version 1 local saves for the current slice: selections, positions/mount, quest progress, inventory, outfit, decorations, race progress/result, and open dialogue IDs. Dialogue text and personalized gift content still resolve from editable data.
-- Valid saves continue straight into the world. Malformed and unsupported saves are removed and start a new game at character creation. Storage failures are caught so play can continue.
-- `npm run build` and `git diff --check` passed. Chromium verified restoration of non-default state and dialogue, plus malformed and unsupported save recovery. No uncaught browser exceptions; existing Vite bundle-size advisory remains.
+- No blocking regressions found. Chromium completed character/horse selection, first-ride progression and reward, all race checkpoints and reward, ordered Echo clues, the finale and reward, and a reload/continue cycle.
+- Malformed JSON and an unsupported save version were removed and returned to character creation. No uncaught browser exceptions.
+- `npm run build` and `git diff --check` passed. Vite retains its existing large-bundle advisory.
 
 ## Current playable state
 
-Enter at the menu to continue a valid save or begin character creation. The world periodically saves current state and flushes on page hide. Saves use `localStorage`; clearing browser storage starts a new game.
+Valid local saves continue from the main menu with current progress. A first run or invalid save goes through character creation. First Ride unlocks Echo; the finale grants a horse apple and leaves the player in free roam.

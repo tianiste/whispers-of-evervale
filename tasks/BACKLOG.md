@@ -82,7 +82,7 @@ Birthday vertical slice first; keep each task narrow and update `CURRENT_TASK.md
 - [x] T017 Versioned local save/load and recovery
   - agent_tier: orchestrator
   - context_budget: medium
-- [ ] T018 End-to-end slice stability pass
+- [x] T018 End-to-end slice stability pass
   - agent_tier: standard
   - context_budget: medium
 
