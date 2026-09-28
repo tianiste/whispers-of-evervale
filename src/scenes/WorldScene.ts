@@ -289,27 +289,27 @@ export class WorldScene extends Phaser.Scene {
     this.checkStoryObjective();
     if (this.ui.isOpen) return;
     if (Phaser.Input.Keyboard.JustDown(this.interactionKey)) {
+      const cat = villageCats.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, 45));
       if (this.mounted) {
         this.tryDismount();
 
       }
       else if (this.inspectStoryObject()) {}
       else if (this.isNear(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y, 35)) this.mountHorse();
+      else if (cat) {
+        this.ui.notify(`${cat.name} leans into your hand. Prrrr…`);
+        this.feedbackTone(330);
+        this.advanceStory('cat', cat.id);
+      }
       else if (this.isNear(this.player.x, this.player.y, KEEPER_POSITION.x, KEEPER_POSITION.y, INTERACTION_RANGE)) {
         const clue = this.storyIndex >= echoStartIndex;
-        this.showDialogue(clue ? 'echo-keeper-clue' : 'stable-keeper-greeting', clue ? echoClues['stable-keeper'] : stableKeeperGreeting);
         this.advanceStory('talk', 'stable-keeper');
+        const id = clue ? 'echo-keeper-clue' : 'stable-keeper-greeting';
+        this.showDialogue(id, this.getDialogue(id));
       }
       else if (this.talkToNearbyVillager()) {}
-      else {
-        const cat = villageCats.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, 45));
-        if (cat) {
-          this.ui.notify(`${cat.name} leans into your hand. Prrrr…`);
-          this.feedbackTone(330);
-          this.advanceStory('cat', cat.id);
-        } else if (this.isNear(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y, INTERACTION_RANGE)) {
-          this.mountHorse();
-        }
+      else if (this.isNear(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y, INTERACTION_RANGE)) {
+        this.mountHorse();
       }
       this.persistGame();
     }
@@ -419,19 +419,17 @@ export class WorldScene extends Phaser.Scene {
 
   private updatePrompt(): void {
     const { x, y } = this.player;
+    const cat = villageCats.find(cat => this.isNear(x, y, cat.x, cat.y, 45));
     let text = '';
     if (this.mounted) text = this.isNear(this.horse.display.x, this.horse.display.y, clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius) && this.raceCheckpointIndex === null ? 'R · Enter Clearing Canter    E · Dismount' : `Riding ${getHorse(this.horseId).name} · E to dismount`;
     else if (this.isNear(x, y, this.horse.display.x, this.horse.display.y, 35)) text = `E · Ride ${getHorse(this.horseId).name}`;
+    else if (cat) text = `E · Pet ${cat.name}`;
     else if (this.isNear(x, y, KEEPER_POSITION.x, KEEPER_POSITION.y, INTERACTION_RANGE)) text = 'E · Talk to the Stable Keeper';
     else {
       const villager = villagers.find((npc) => this.isNear(x, y, npc.x, npc.y, INTERACTION_RANGE));
       if (villager) text = `E · Talk to ${villager.name}`;
 
-      else {
-        const cat = villageCats.find((cat) => this.isNear(x, y, cat.x, cat.y, 45));
-        if (cat) text = `E · Pet ${cat.name}`;
-        else if (this.isNear(x, y, this.horse.display.x, this.horse.display.y, INTERACTION_RANGE)) text = `E · Ride ${getHorse(this.horseId).name}`;
-      }
+      else if (this.isNear(x, y, this.horse.display.x, this.horse.display.y, INTERACTION_RANGE)) text = `E · Ride ${getHorse(this.horseId).name}`;
     }
     const objective = storyObjectives[this.storyIndex];
     if (!this.mounted && objective?.type === 'inspect' && objective.x !== undefined && objective.y !== undefined && this.isNear(x, y, objective.x, objective.y, QUEST_INTERACTION_RANGE)) text = 'E · Inspect ' + objective.target.replaceAll('-', ' ');
@@ -446,8 +444,8 @@ export class WorldScene extends Phaser.Scene {
   private talkToNearbyVillager(): boolean {
     const villager = villagers.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, INTERACTION_RANGE));
     if (!villager) return false;
-    this.showDialogue(villager.id === 'village-baker' ? 'village-baker' : 'trail-guide', villager.dialogue);
     this.advanceStory('talk', villager.id);
+    this.showDialogue(villager.id, this.getDialogue(villager.id));
     return true;
   }
 
@@ -466,6 +464,12 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private getDialogue(id: SavedDialogueId): { speaker: string; message: string } {
+    const previous = storyObjectives[this.storyIndex - 1];
+    const target = id === 'stable-keeper-greeting' ? 'stable-keeper' : id;
+    if (previous?.type === 'talk' && previous.target === target && previous.payoff) {
+      const speaker = target === 'stable-keeper' ? stableKeeperGreeting.speaker : villagers.find(npc => npc.id === target)!.name;
+      return { speaker, message: previous.payoff };
+    }
     if (id === 'stable-keeper-greeting') return stableKeeperGreeting;
     if (id === 'echo-keeper-clue') return echoClues['stable-keeper'];
     if (id === 'echo-guide-clue') return echoClues['trail-guide'];

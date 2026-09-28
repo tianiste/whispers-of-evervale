@@ -163,7 +163,7 @@ try {
     const countdownPosition = await state('[s.horse.display.x,s.horse.display.y]');
     await key('d'); await wait(250); await key('d', 'keyUp');
     assert.deepEqual(await state('[s.horse.display.x,s.horse.display.y]'), countdownPosition);
-    await screenshot('countdown'); await wait(2900);
+    await screenshot('countdown'); await waitForRace();
     assert.equal(await state('s.raceCheckpointIndex'), 0);
     assert.equal(await evaluate('document.querySelector(".race-hud").hidden'), false);
     await press('Escape'); const elapsed = await state('s.raceElapsedMs'); await wait(400);
@@ -199,9 +199,11 @@ try {
       await press('h'); await click('#stable-tab'); await click('#decorate-window'); await press('Escape');
     } else {
       await dismount();
-      const locations = { 'stable-keeper':[800,550], 'village-baker':[360,330], 'trail-guide':[250,280], 'stable-cat':[720,530], 'calico-cat':[450,410], 'gray-cat':[200,390], 'bakery-gift':[360,330] };
+      const locations = { 'stable-keeper':[800,550], 'village-baker':[360,330], 'trail-guide':[250,280], 'stable-cat':[740,530], 'calico-cat':[450,410], 'gray-cat':[200,390], 'bakery-gift':[360,330] };
       const [x,y] = locations[objective.target] ?? [objective.x,objective.y];
-      await place(x,y); await press('e');
+      await place(x,y);
+      if (objective.type === 'cat') assert.ok(await evaluate(`document.querySelector('.interaction').textContent.includes('Pet')`), 'Cat marker offers pet interaction');
+      await press('e');
       if (objective.type === 'shop') {
         await click('#browse-shop'); await screenshot('shop'); await click('#claim-outfit');
         assert.equal(await state('s.inventory.get("berry-gift")'), 1);
@@ -209,6 +211,11 @@ try {
       }
     }
     assert.equal(await state('s.storyIndex'), index + 1, `Completed ${objective.target}`);
+    if (objective.type === 'talk') {
+      assert.equal(await evaluate('document.querySelector(".dialogue-copy").textContent'), objective.payoff);
+      await reload();
+      assert.equal(await evaluate('document.querySelector(".dialogue-copy").textContent'), objective.payoff, 'Quest dialogue survives reload');
+    }
     if (objective.type === 'inspect') {
       assert.equal(await evaluate('document.querySelector("dialog").open'), true);
       if (objective.target === 'fragment-meadow' || objective.target === 'birthday-finale') {

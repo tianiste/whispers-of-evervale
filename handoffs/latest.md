@@ -1,18 +1,17 @@
 # Handoff
 
-## Current work
-The directly requested birthday-content integration replaces the two tiny quests with ten chapters / 38 objectives in `src/data/story.ts`. No backlog advancement. Main play mixes horse riding, wardrobe, decoration, cats, bakery gift, one forgiving race, three fragments, personal discoveries and the configurable birthday ending. Free roam and repeat racing remain available afterward.
+## Current request and remaining decision
+The user repeated the birthday-content request, including a 45–75 minute main experience. The repository already contains ten chapters / 38 objectives and all requested activity categories. **The duration requirement remains unmet/unvalidated.** An async clarification asks whether to retain and polish the compact adventure or expand playable space/activities. No answer has arrived. Do not call the full request complete or pad it with dialogue, forced waits, or repeated laps. No backlog advancement is authorized; CURRENT_TASK remains the previously completed UI task.
 
-## Durable implementation
-- `WorldScene` uses one sequential `storyIndex`, chapter journal entries and a directional objective marker. Discovery props and a cat-in-a-riding-hat patch are visible; mystery particles start with the Echo arc and strengthen for the final ride.
-- Meadow/Sky are initial looks; Berry is a free bakery gift. Chapter two awards a teal flower pot. Finale rewards are Birthday teal (tinted Sky), a fitted bridle ribbon and an Echo lantern. No economy, new horse, region, dependencies or general tack system.
-- Chapter/objective rewards and narrative stay in content data. Existing birthday text/signature remain unchanged inside the new reveal. Completed discoveries can be reread in the journal.
-- Version 1 gains additive validated `storyIndex`; legacy quest fields remain readable. Old unfinished saves restart the new story with possessions retained; old completed finales remain complete. A saved inspection dialogue resolves from the previous objective. Early gift collection remains idempotent and does not block the later shop objective.
-- Close-range mounting precedes NPC interaction, fixing the horse-on-villager remount trap. Current quest inspections retain priority.
+## This pass
+Inspected the requested design documents, existing content, interaction flow, persistence and browser harness. Fixed two integration problems:
+- At the cream tabby’s actual marker (740, 530), the keeper’s talk radius intercepted E. Nearby cats now precede NPC interaction, while close-range mounting and story inspections retain priority. Prompts follow the same order.
+- Story NPCs displayed generic conversation text; authored quest lines appeared only as transient feedback and vanished on reload. Conversations now resolve their authored payoff from the previous completed talk objective, both initially and after reload, using existing dialogue IDs and save fields.
 
-## Validation and limits
-Build, typecheck, and the expanded Chromium verification passed (60 FPS, no browser errors). The browser harness covers accelerated fresh-save progression through every objective, chapter reloads, saved fragment/finale dialogue, rewards, customization, early shopping, legacy/invalid story progress, movement/collisions, race state and post-ending free roam. It also rides one full race with keyboard input. It does not measure casual playtime.
+The regression harness now targets the real cat coordinates, asserts pet prompts and authored NPC dialogue through reloads, and waits for actual race-countdown completion instead of assuming a wall-clock delay. An initial run exposed the generic greeting; another exposed the fragile countdown wait.
 
-**45–75 minutes remains unmet/unvalidated.** The unchanged compact map takes seconds to cross. This pass intentionally avoids padded dialogue, repeated laps or forced waiting; reaching the requested duration requires more playable space/activities and a timed casual-player session. The user was asked about that scope tradeoff; no response was available during implementation.
+## Durable content
+Story content is in src/data/story.ts; configurable personal birthday text/signature remain in src/data/birthdayGift.ts. Rewards include Berry, a teal flower pot, race apples, three Echo fragments, birthday teal clothing, fitted bridle ribbon and an Echo lantern. Cats, customization and racing remain available in free roam. No new systems, dependencies, content objectives or save schema changes in this pass.
 
-The user subsequently requested committing everything and pushing, including the baseline package/config/design files. `CURRENT_TASK.md` remains the prior completed task, as required by manual advancement rules.
+## Validation
+Build, typecheck and the expanded Chromium regression passed (60 FPS, no browser errors). All 38 objectives, cat marker prompts, NPC/fragment/finale dialogue reloads, rewards, customization, race and post-ending free roam passed. No npm test or lint script exists. Browser traversal uses accelerated travel and actual interaction/menu input; the final repeat race uses keyboard riding. This is functional verification, not a timed casual playthrough. Existing Vite bundle-size advisory remains.
