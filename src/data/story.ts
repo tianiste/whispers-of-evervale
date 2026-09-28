@@ -1,14 +1,35 @@
 import type { ItemId } from './items';
 import { birthdayGift } from './birthdayGift';
+import { countrysideTrails, type JourneyPoint } from './journeys';
 
 export interface StoryObjective {
-  type: 'talk' | 'ride' | 'inspect' | 'cat' | 'equip' | 'decorate' | 'race' | 'mount' | 'shop';
+  type: 'talk' | 'ride' | 'inspect' | 'cat' | 'equip' | 'decorate' | 'race' | 'mount' | 'shop' | 'trail' | 'search' | 'pattern' | 'care' | 'quiz';
   target: string;
   description: string;
   x?: number;
   y?: number;
   payoff?: string;
   reward?: ItemId;
+  points?: JourneyPoint[];
+  hint?: string;
+  quizQuestion?: string;
+  quizOptions?: { id: string; text: string; correct?: boolean; response?: string }[];
+}
+
+
+// Each leg ends at a small discovery so long rides have natural places to dismount.
+function journey(target: string, id: string): StoryObjective[] {
+  const route = countrysideTrails.find(trail => trail.id === id);
+  if (!route) throw new Error(`Unknown countryside trail: ${id}`);
+  const objectives: StoryObjective[] = [];
+  for (let start = 0; start < route.points.length; start += 9) {
+    const points = route.points.slice(start, start + 9);
+    const first = points[0]!;
+    const last = points[points.length - 1]!;
+    objectives.push({ type: 'trail', target: start === 0 ? target : `${target}-leg-${start}`, description: `Ride ${route.name.toLowerCase()} — follow the marked countryside path`, x: first.x, y: first.y, points });
+    if (start + 9 < route.points.length) objectives.push({ type: 'inspect', target: `${target}-rest-${start}`, x: last.x + 65, y: last.y + 45, description: `Dismount at the ${route.name.toLowerCase()} waystone and inspect its carving`, payoff: route.theme === 'echo' ? 'A little horse is carved beside a cat. Both are following a ribbon toward the oak.' : route.theme === 'ridge' ? 'A weather-worn horseshoe points to the next overlook. The countryside opens wide below.' : route.theme === 'river' ? 'Tiny hoofprints cross the stone beside a carved kingfisher. Someone else loved stopping here.' : route.theme === 'woodland' ? 'A fern curls around a carved saddle. Between the trees, another path catches the light.' : route.theme === 'orchard' ? 'A carved apple and a tiny sleeping cat. This seems like a sensible place for a picnic.' : 'Wildflowers wind around a little carved horse. The path continues through the grass.' });
+  }
+  return objectives;
 }
 
 export const storyChapters: { name: string; objectives: StoryObjective[]; payoff: string; reward?: ItemId }[] = [
@@ -29,6 +50,7 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
       { type: 'ride', target: 'stable-home', x: 825, y: 600, description: 'Ride southwest back to your stable' },
       { type: 'equip', target: 'any-outfit', description: 'Open the wardrobe with O and choose an outfit' },
       { type: 'decorate', target: 'any-slot', description: 'Open H and choose a decoration for one stable slot' },
+      { type: 'care', target: 'first-horse-care', description: 'Dismount beside your horse; H → Your horse to brush, water, and offer a treat', payoff: 'A brushed coat, fresh water, a snack. Ready for a proper outing.' },
       { type: 'cat', target: 'stable-cat', x: 740, y: 530, description: 'Dismount, then pet the cream tabby west of the stable with E', payoff: 'The tabby examines your decorating work, then sits down. Approval, probably.' },
     ],
     payoff: 'A teal flower pot is yours — H → Stable to place it. The cat has claimed joint ownership.',
@@ -39,6 +61,7 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
       { type: 'mount', target: 'chosen-horse', description: 'Mount up for the village ride' },
       { type: 'ride', target: 'lane-flowers', x: 565, y: 480, description: 'Follow the lane northwest to the flowers' },
       { type: 'inspect', target: 'roadside-posy', x: 525, y: 445, description: 'Dismount and inspect the little blue-green posy beside the lane', payoff: 'Someone tied the stems with teal thread. A nice detail on an ordinary country road.' },
+      ...journey('orchard-country-ride', 'orchard-outing'),
       { type: 'ride', target: 'village-arrival', x: 400, y: 350, description: 'Continue northwest into the village', payoff: 'Warm bread, birdsong, and a cat pretending not to watch you arrive.' },
     ],
     payoff: 'The village is yours to explore. The baker has something set aside.',
@@ -64,61 +87,105 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
     payoff: 'You finished together. And something else seems to have noticed.',
   },
   {
-    name: 'Something Strange',
+    name: 'Echo I — A Spark in the Crowd',
     objectives: [
       { type: 'inspect', target: 'glowing-hoofprint', x: 1130, y: 660, description: 'Dismount and inspect the glowing hoofprint east of the race gate', payoff: 'A hoofprint full of light. Your horse is curious, not afraid. Another glimmer waits farther south.' },
-      { type: 'ride', target: 'southern-glimmer', x: 1120, y: 880, description: 'Ride south to the glimmer in the meadow' },
-      { type: 'inspect', target: 'echo-blossom', x: 1180, y: 875, description: 'Dismount and inspect the unusual teal blossom', payoff: 'The blossom hums like a tiny bell. Three sparks drift away toward the eastern meadow.' },
-      { type: 'inspect', target: 'bent-grass', x: 1320, y: 830, description: 'Follow the bent grass east and inspect the pale mark', payoff: 'No broken stems. Only a line of light, as if a memory rode through here.' },
+      ...journey('southern-glimmer', 'willow-water'),
+      {
+        type: 'quiz',
+        target: 'echo-1',
+        x: 18000,
+        y: 40000,
+        description: 'Dismount and inspect the glowing memory fragment',
+        quizQuestion: 'Who was there that night?',
+        quizOptions: [
+          { id: 'opt1', text: 'Only Hana and Tian', response: 'That is one version of events.' },
+          { id: 'opt2', text: 'Maj, Tilen and friends', correct: true, response: 'Correct.' },
+          { id: 'opt3', text: 'Three suspicious cats in a trenchcoat', response: 'Suspicious answer. The Echo seems unconvinced.' }
+        ],
+        payoff: 'A stylized pixel-art club. Dark environment, teal and purple lighting. Silhouettes and light pulses.'
+      },
+      {
+        type: 'quiz',
+        target: 'echo-1-part2',
+        x: 20000,
+        y: 40000,
+        description: 'Follow the spark and inspect the next fragment',
+        quizQuestion: 'What happened during the world\'s most questionable first impression?',
+        quizOptions: [
+          { id: 'opt1', text: 'A completely normal handshake', response: 'The Echo shakes its head.' },
+          { id: 'opt2', text: 'Hana accidentally touched Tian\'s left cheek with a lit cigarette', correct: true, response: 'Some people bring flowers. Apparently we went with mild facial burns.' },
+          { id: 'opt3', text: 'A dance battle', response: 'If only.' }
+        ],
+        payoff: 'Some people bring flowers. Apparently we went with mild facial burns. At this stage, it feels like a strangely specific Echo.'
+      }
     ],
-    payoff: 'An Echo trail is waking up. Follow the little lights.',
+    payoff: 'The fragment settles into a small warm spark.'
   },
   {
-    name: 'Echo Trail',
+    name: 'Echo II — Five Minutes Until Break',
     objectives: [
-      { type: 'inspect', target: 'fragment-meadow', reward: 'echo-fragment', x: 1450, y: 780, description: 'Dismount to find the first Echo fragment in the eastern meadow', payoff: 'A sunny field, the rhythm of hooves. The fragment settles into a small warm spark.' },
-      { type: 'ride', target: 'eastern-bend', x: 1560, y: 575, description: 'Ride north along the eastern meadow edge' },
-      { type: 'inspect', target: 'fragment-breeze', reward: 'echo-fragment', x: 1510, y: 465, description: 'Dismount to find the second fragment northwest of the bend', payoff: 'A breeze lifts a ribbon. Teal again. This is starting to feel less like coincidence.' },
-      { type: 'inspect', target: 'fragment-bell', reward: 'echo-fragment', x: 1340, y: 375, description: 'Dismount to find the third fragment farther northwest', payoff: 'Three notes join into one clear bell. A tiny village sign appears in the light: ask the Trail Guide.' },
+      ...journey('fern-hollow-ride', 'fern-hollows'),
+      {
+        type: 'quiz',
+        target: 'echo-2',
+        x: 33000,
+        y: 44000,
+        description: 'Dismount to find the second Echo fragment in the eastern meadow',
+        quizQuestion: 'What were we waiting for more than anything?',
+        quizOptions: [
+          { id: 'opt1', text: 'The shift to end', response: 'True, but not the whole truth.' },
+          { id: 'opt2', text: 'Going to the sea together', correct: true, response: 'Yes. They were barely able to wait.' },
+          { id: 'opt3', text: 'Lunch break', response: 'Food is good, but no.' }
+        ],
+        payoff: 'A split memory: the GEN-I office on one side, the warehouse on the other. Phones connecting them.'
+      }
     ],
-    payoff: 'The scattered lights belong together. Someone in the village may know why.',
+    payoff: 'They wanted to talk every day even while working.'
   },
   {
-    name: 'Personal Signs',
+    name: 'Echo III — Half a Bed',
     objectives: [
-      { type: 'talk', target: 'trail-guide', x: 250, y: 280, description: 'Ride west, then dismount to meet the Trail Guide beside the village hall', payoff: 'Echoes remember things people care about. Horses, little places, company. That gray cat has been guarding one all morning.' },
-      { type: 'cat', target: 'gray-cat', x: 200, y: 390, description: 'Dismount, then pet the gray cat south of the village hall', payoff: 'The cat stretches, revealing a tiny embroidered patch. Its heroic guarding shift is apparently over.' },
-      { type: 'inspect', target: 'cat-patch', x: 235, y: 420, description: 'Dismount and inspect the patch beside the gray cat', payoff: 'A cat in a very small riding hat. The stitching is surprisingly serious about a deeply unserious subject.' },
-      { type: 'inspect', target: 'quarter-horse-sketch', x: 340, y: 455, description: 'Dismount and inspect the sketch southeast of the cat', payoff: 'A sturdy Quarter Horse, a teal ribbon, open countryside. On the back: “For someone with excellent taste in horses.”' },
+      ...journey('eastern-bend', 'breeze-memory'),
+      {
+        type: 'quiz',
+        target: 'echo-3',
+        x: 58000,
+        y: 33000,
+        description: 'Dismount to find the third fragment at the silver reed shore',
+        quizQuestion: 'What game were we playing in the camper van?',
+        quizOptions: [
+          { id: 'opt1', text: 'Minecraft', response: 'A good guess, but no.' },
+          { id: 'opt2', text: 'Brawl Stars', correct: true, response: 'Exactly.' },
+          { id: 'opt3', text: 'Fortnite', response: 'The camper van didn\'t have the setup for that.' }
+        ],
+        payoff: 'A cozy evening playing Brawl Stars together.'
+      },
+      {
+        type: 'quiz',
+        target: 'echo-3-part2',
+        x: 58200,
+        y: 33200,
+        description: 'Inspect the final piece of the memory',
+        quizQuestion: 'What did we spill on the bed?',
+        quizOptions: [
+          { id: 'opt1', text: 'Coffee', response: 'Fortunately not.' },
+          { id: 'opt2', text: 'Water', correct: true, response: 'A camper van. One wet bed. Half a mattress was apparently enough.' },
+          { id: 'opt3', text: 'Juice', response: 'Sticky, but no.' }
+        ],
+        payoff: 'Hana and Tian squeezed onto the remaining dry side.'
+      }
     ],
-    payoff: 'Cats, countryside, and a favorite kind of horse. These signs are beginning to sound familiar.',
-  },
-  {
-    name: 'Final Ride',
-    objectives: [
-      { type: 'mount', target: 'chosen-horse', description: 'Mount up for one last ride along the Echo trail' },
-      { type: 'ride', target: 'home-lights', x: 860, y: 650, description: 'Follow the lane southeast past the warm stable lights' },
-      { type: 'ride', target: 'flower-view', x: 1360, y: 880, description: 'Ride southeast through the open wildflower meadow', payoff: 'The little lights keep pace beside you. No chase, no hurry. Just good company.' },
-      { type: 'ride', target: 'oak-approach', x: 1610, y: 380, description: 'Curve north along the eastern edge toward the old oak' },
-    ],
-    payoff: 'The bell is quiet now. Its light is waiting beneath the oak.',
-  },
-  {
-    name: 'A Memory Made for You',
-    reward: 'echo-tack',
-    objectives: [
-      { type: 'inspect', target: 'oak-ribbon', x: 1550, y: 330, description: 'Dismount and inspect the ribbon on the eastern side of the old oak', payoff: `A tiny tag reads “For ${birthdayGift.recipient}.” The whole trail was an invitation.` },
-      { type: 'inspect', target: 'birthday-finale', x: 1480, y: 300, description: 'Open the birthday Echo beneath the old oak' },
-    ],
-    payoff: 'Happy birthday. Your gifts are ready, your horse is waiting, and Evervale is yours to wander.',
-  },
+    payoff: 'A strange feeling... these memories seem connected to Hana and Tian.'
+  }
 ];
 
 export const storyObjectives = storyChapters.flatMap((chapter) => chapter.objectives.map((objective, index) => ({
   ...objective,
+  id: `${chapter.name}:${objective.target}`,
   chapter: chapter.name,
   chapterEnd: index === chapter.objectives.length - 1,
 })));
 
-export const echoStartIndex = storyObjectives.findIndex(o => o.chapter === 'Something Strange');
-export const finalRideStartIndex = storyObjectives.findIndex(o => o.chapter === 'Final Ride');
+export const echoStartIndex = storyObjectives.findIndex(o => o.chapter === 'Echo I — A Spark in the Crowd');
+export const finalRideStartIndex = storyObjectives.findIndex(o => o.chapter === 'Echo III — Half a Bed');
