@@ -1,6 +1,8 @@
-export type DecorationId = 'flower-box' | 'lantern' | 'wreath';
+export type DecorationId = 'flower-box' | 'lantern' | 'wreath' | 'echo-lantern' | 'teal-posy';
 
 export const decorations = [
+  { id: 'teal-posy', name: 'Teal flower pot', symbol: '✿', color: '#55cabb' },
+  { id: 'echo-lantern', name: 'Birthday Echo lantern', symbol: '✦', color: '#77ffe0' },
   { id: 'flower-box', name: 'Flower box', symbol: '✿', color: '#e89caf' },
   { id: 'lantern', name: 'Lantern', symbol: '✦', color: '#f2c66d' },
   { id: 'wreath', name: 'Wreath', symbol: '❀', color: '#9fca8e' },

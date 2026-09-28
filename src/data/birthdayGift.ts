@@ -9,5 +9,5 @@ export const birthdayGift = {
 
 export const birthdayFinale: DialogueDefinition = {
   speaker: `Za ${birthdayGift.nickname || birthdayGift.recipient}`,
-  message: `${birthdayGift.message}\n\n— ${birthdayGift.developerName}`,
+  message: `The Echo was made for you, ${birthdayGift.recipient}. Horses, cats, countryside — the clues were not terribly subtle, were they?\n\n${birthdayGift.message}\n\n— ${birthdayGift.developerName}\n\nYour birthday teal outfit, bridle ribbon and Echo lantern are ready. Evervale is yours to wander.`,
 };

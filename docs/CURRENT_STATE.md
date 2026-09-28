@@ -2,45 +2,32 @@
 
 ## Milestone and runtime
 
-M0 — first playable loop. The October 1 birthday vertical slice is implemented, including the UI/UX, gameplay-feel, and original pixel-art presentation passes. Post-birthday expansion remains unstarted. The target is a polished small countryside adventure, not more regions or systems.
+The October 1 birthday slice runs in Phaser 3.90, strict TypeScript and Vite, targeting desktop browsers. Boot leads through MainMenu and the rider/first-horse creator into a 960×540 FIT canvas. The world remains the original 1800×1100 Sunmeadow area; no regions, dependencies, currency economy or combat were added.
 
-Phaser 3.90 + strict TypeScript + Vite + npm; static desktop browser target. `npm run dev` starts Vite. Boot loads the shared ambience, then MainMenu leads to CharacterCreator or continues a local save. The creator offers three rider appearances and three first-horse choices. World runs on a 960×540 canvas with Phaser FIT scaling.
+The current direct user request expands the birthday story. Ten chapters and 38 sequential objectives now replace the former seven-step story. This is a cohesive short adventure, **not a validated 45–75 minute experience**. The compact map and 330 px/s riding speed cannot support that duration without substantially more playable content. No mandatory waits or dialogue padding were introduced. A casual-player pacing session remains necessary; automated accelerated progression is not a duration measurement.
 
-## Gameplay and presentation
+## Main adventure and rewards
 
-The 1800×1100 Sunmeadow area uses original production pixel art: textured meadow, connected dirt lanes, fences, flower beds, pond, timber stable, bakery, village hall, trees and farm props. Static ground is baked into one texture; buildings, trees and actors sort by ground position. The four existing circular obstacles retain their physics. Additional scenery is decorative, not a new collision map. Three cat appearances are visible, with nearby E-to-pet feedback after higher-priority interactions.
+`src/data/story.ts` owns objective text, coordinates, short discoveries, chapter payoffs and reward IDs. Chapters introduce the stable and selected horse, wardrobe and decoration, the village lane, bakery gift, Clearing Canter, strange hoofprints/plants, three Echo fragments, personal signs, a final scenic ride and the birthday Echo at the old oak.
 
-Three horses have shaded coats, clear silhouettes, leather saddles, teal blankets, bridles and four-frame leg cycles. Maple is the brown Quarter Horse option. Riders have distinct hair, visible jacket/shirt/boots, four directions and three outfit palettes; mounted side poses follow horse facing. Walking uses a small sprite bob. Creator, wardrobe and horse panels use the same production art. Warm window glows, a small fixed pollen set, pond shimmer, soft shadows and a pulsing teal Echo with rising motes add atmosphere without a custom lighting pipeline.
+Objectives use existing riding, inspection, NPC, cat, wardrobe, decoration, counter and race interactions. There is no timer requirement for the story or race. The HUD tracks one objective with a directional arrow for fixed destinations; a ground ring marks the current destination. Echo glow/motes begin during the mystery and grow for the final ride. Small inspectable props and a cat-in-a-riding-hat patch support discoveries visually. The journal retains completed discoveries and chapter progress.
 
-Walking uses normalized WASD/arrows, a quick acceleration response, and a 205 px/s maximum. Riding has a 330 px/s maximum with a short acceleration ramp, quicker release braking, responsive direction changes, horizontal horse facing, a small rider bob, and brief hoof dust. The horse collision circle is centered on its drawing and stays fixed when facing changes. E mounts a nearby horse or finds a clear dismount spot. A blocked dismount reports that more space is needed. World and obstacle collisions remain Arcade Physics.
+Meadow and Sky outfits are available initially. The bakery gives Berry for free and can be visited before its main objective without duplicate gifts. Making the stable a home awards a teal flower pot for its existing decoration slots. Race completion awards a Horse Apple. Three fragments remain as satchel keepsakes. The finale unlocks a Birthday teal outfit (a tinted existing Sky look), automatically fits a teal bridle ribbon, and makes the Echo lantern available through H → Stable. The configured birthday message and signature in `src/data/birthdayGift.ts` are preserved inside a short reveal. Clothing, decorations, cats and repeat races remain available in free roam.
 
-Camera follow uses a separate target with modest velocity look-ahead, delta-adjusted easing and a gradual wider riding view. Rider bob does not drive the camera. Mounted rider positions stay inside world bounds, preserving valid saves along the north edge.
+Three cats are optional interactions outside their story appearances. Maple remains the brown Quarter Horse starter choice alongside the Mustang and Friesian. There is no additional horse/coat unlock or tack collection/equip system; the birthday ribbon is a permanent fitted cosmetic.
 
-## Interface and controls
+## Presentation and controls
 
-Normal gameplay shows the tracked objective, a contextual interaction/riding prompt, and a Menu button. Inventory, clothing, decorations, race status and instructions are no longer permanent gameplay panels. No currency is displayed because the slice has no currency system.
+Production pixel art, connected countryside paths, stable/village buildings, pond, trees, warm glows and ambient pollen remain. Four circular physics obstacles are unchanged. Scenery remains decorative. Walking reaches 205 px/s; riding reaches 330 px/s with acceleration, release braking, hoof dust and camera look-ahead. Character and horse animation use the existing sprite sheets.
 
-One native HTML dialog shell owns all gameplay windows without additional Phaser scenes. It provides dimming, readable cream panels, wood borders and teal buttons, hover/press/focus states, explicit Tab wrapping, Escape/close/back behavior and reduced-motion CSS. Windows stop movement and suspend race/countdown progress. Losing game focus opens pause when another window is not already open.
+WASD/arrows move; E interacts or mounts/dismounts; R at the mounted race gate opens its briefing. I opens the satchel, O the wardrobe, H horse/stable, J the journal, and Escape the pause menu. Native HTML dialogs pause movement and race/countdown progression, trap keyboard focus, support Escape and expose inline feedback. Close-range horse interaction takes priority over nearby NPCs so parking on a villager does not strand the horse; quest inspections retain priority. Prompts reflect that ordering.
 
-- I: satchel with collected item counts and an empty state.
-- O: wardrobe with outfit/rider categories, visual choices, current character preview, equipped states and immediate saved changes.
-- H: one owned/active horse with breed and preview, starter-tack information, and the three existing stable decoration slots.
-- J: ordered quest objectives, completed steps and the most recent race result.
-- Esc: pause, menu navigation, controls and a session-level sound-volume slider.
-- E: nearby interaction or mount/dismount; prompts follow the same priority as interaction logic.
+Clearing Canter keeps its three ordered gates, countdown, elapsed time, directional race HUD, completion results, cancellation and repeatable reward. No time limit or losing state was added. The existing ambience and quiet interaction cues remain; there is no separate finale music asset.
 
-Dialogue uses the shared modal shell and a focused Continue button, activated with Enter, Space or a click. The bakery dialogue can open its counter, which honestly reports no goods for sale. Starter tack is visual only; there is no shop economy or equippable tack catalog. Item collection, quest completion, clue discovery, equip and decoration changes have transient feedback; modal actions also show inline feedback. Mounting, countdown, checkpoints and rewards have quiet synthesized cues through the existing Web Audio sound context.
+## Persistence and validation
 
-## Races, quests and saves
+Version 1 saves gain one additive validated `storyIndex` field plus new recognized item/outfit/decoration/dialogue IDs. Old unfinished saves begin the expanded story while retaining possessions and position; old completed finales remain complete/free roam and receive the fitted ribbon. Legacy quest fields remain for parsing existing saves. New progress, discoveries, cosmetics, active races and the finale dialog persist. Inspection dialogue resolves from the last completed objective, so reloading does not re-award fragments.
 
-At the mounted race gate, R opens Clearing Canter's briefing. Ready starts 3–2–1–GO, then reveals the three ordered checkpoints, elapsed time and next-gate direction/name. Completed gates disappear; future gates are subdued. Finishing stops the horse and opens results with time and the Horse Apple reward. E leaves a race. Race HUD and checkpoints disappear outside active races. Pause freezes elapsed time. Active race progress resumes from saves without granting duplicate rewards.
+`npm run build`, `npm run typecheck`, and the expanded Chromium verification passed for this content pass; no npm test/lint script exists. The browser pass reported 60 FPS and no browser errors. `scripts/verify-ui.mjs` uses isolated Chromium with a test-only intercepted entrypoint, never a production test handle. Its story traversal uses accelerated travel plus real E/menu input; a separate full race uses keyboard riding. It checks chapter reloads, fragment/finale dialogue restoration, early shopping, rewards, migration validation, customization, movement/collisions, race pause/resume/cancel and free roam. Screenshots are written under the system temporary directory. Vite retains its large-bundle advisory.
 
-“A First Ride” leads through the keeper, clearing marker, wildflower and horse interaction. It unlocks “A Familiar Echo,” which leads through keeper/guide clues to the old oak and Hana's editable finale note signed by Tian. Each quest awards one Horse Apple. Free roaming remains available afterward.
-
-Version 1 saves remain unchanged: rider/horse selections, positions, mounted state, outfit, both quest indices, inventory, decoration slots, active/completed race data and dialogue ID persist locally. Invalid/unsupported saves start character creation. Personal text remains content data resolved from IDs.
-
-## Validation and key paths
-
-Build and typecheck are available through npm. There is no package test or lint command. `scripts/verify-ui.mjs` is a dependency-free Chromium integration check: run Vite first, then `node scripts/verify-ui.mjs` with Node 22+ and Chromium on PATH. It uses an isolated profile and test-only entrypoint interception; production exposes no test handle. It exercises menus/focus, customization, dialogue, quests/rewards, riding/collisions, race flows, reloads and desktop layouts. Screenshots go to the system temporary directory. Vite retains its existing large-bundle advisory.
-
-UI shell: `src/ui/GameUI.ts`, `src/style.css`. World orchestration: `src/scenes/WorldScene.ts`. Horse sprites: `src/entities/HorseEntity.ts`. Environment: `src/art/Environment.ts`. Production PNGs: `public/assets/art/`. Original deterministic source art generators live separately in `scripts/art/`; regeneration requires Python/Pillow only, with no added game dependency. Static content and save validation remain in `src/data/`. The visual batch followed the user’s direct scope; `tasks/CURRENT_TASK.md` still records the previously completed UI task. No backlog advancement is authorized.
+The user subsequently authorized committing all project files, including the baseline package/config/design files. `tasks/CURRENT_TASK.md` still describes the previously completed UI pass; this work follows the user's direct request. No backlog advancement is authorized.

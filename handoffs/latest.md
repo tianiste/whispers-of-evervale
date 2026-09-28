@@ -1,17 +1,18 @@
 # Handoff
 
-## Completed batch
-Original pixel-art presentation pass for the existing birthday slice. Working UI/UX, controls, race flow, story and version-1 saves were preserved. No backlog advancement or new region was started.
+## Current work
+The directly requested birthday-content integration replaces the two tiny quests with ten chapters / 38 objectives in `src/data/story.ts`. No backlog advancement. Main play mixes horse riding, wardrobe, decoration, cats, bakery gift, one forgiving race, three fragments, personal discoveries and the configurable birthday ending. Free roam and repeat racing remain available afterward.
 
 ## Durable implementation
-- `public/assets/art/` contains original production PNGs. Source generators are separate in `scripts/art/`; Python/Pillow is needed only to regenerate art, not to run/build the game. No runtime dependencies were added.
-- `src/art/Environment.ts` loads and places textured ground, timber stable/village architecture, trees, fences, pond and props. Static detail is baked into ground; buildings, trees and actors use ground-position depth. Existing four obstacle collision circles remain; additional scenery is decorative.
-- Horses share a 96×80 sheet with three coats and four leg-cycle frames per horse. Maple has warm brown shading, a readable Quarter Horse silhouette, mane, markings, leather tack and teal blanket. Horse visual flipping leaves physics geometry unchanged.
-- Riders use a 32×48 sheet: first 36 frames are appearance/outfit/direction combinations; the final 18 are seated left/right poses. Separate matching PNGs serve wardrobe previews. Hair, jacket, shirt and boots are visible. Creator previews all existing choices.
-- Menu and management windows share wood, cream and teal styling with square borders and preserved keyboard focus behavior. Starter tack is described honestly as visual equipment; no tack inventory system was introduced. Stable decoration symbols now sit on the facade.
-- Three cat appearances have nearby E-to-pet feedback. Warm window glows, 18 drifting pollen sprites, pond shimmer, shadows and teal Echo glow/motes provide light atmosphere without shaders or new systems.
+- `WorldScene` uses one sequential `storyIndex`, chapter journal entries and a directional objective marker. Discovery props and a cat-in-a-riding-hat patch are visible; mystery particles start with the Echo arc and strengthen for the final ride.
+- Meadow/Sky are initial looks; Berry is a free bakery gift. Chapter two awards a teal flower pot. Finale rewards are Birthday teal (tinted Sky), a fitted bridle ribbon and an Echo lantern. No economy, new horse, region, dependencies or general tack system.
+- Chapter/objective rewards and narrative stay in content data. Existing birthday text/signature remain unchanged inside the new reveal. Completed discoveries can be reread in the journal.
+- Version 1 gains additive validated `storyIndex`; legacy quest fields remain readable. Old unfinished saves restart the new story with possessions retained; old completed finales remain complete. A saved inspection dialogue resolves from the previous objective. Early gift collection remains idempotent and does not block the later shop objective.
+- Close-range mounting precedes NPC interaction, fixing the horse-on-villager remount trap. Current quest inspections retain priority.
 
 ## Validation and limits
-Build and typecheck passed; the project has no npm test/lint command. Expanded `scripts/verify-ui.mjs` uses isolated Chromium to check menus, all creator choices, texture loading, customization, cat petting, dialogue/quests, horse collisions, race countdown/pause/resume/finish/cancel, saved progress and desktop layouts. Runtime screenshots cover menu, creator, wardrobe, horses, countryside, village, riding, Echo and birthday dialogue. The completed browser pass reported 60 FPS and no browser errors. Vite retains its existing large-bundle advisory.
+Build, typecheck, and the expanded Chromium verification passed (60 FPS, no browser errors). The browser harness covers accelerated fresh-save progression through every objective, chapter reloads, saved fragment/finale dialogue, rewards, customization, early shopping, legacy/invalid story progress, movement/collisions, race state and post-ending free roam. It also rides one full race with keyboard input. It does not measure casual playtime.
 
-The initial working tree contained unrelated untracked baseline package/config/design files; these remain outside the visual task commit. `CURRENT_TASK.md` continues to record the previous completed UI task; this batch was directly authorized by the user. Stop here until further direction.
+**45–75 minutes remains unmet/unvalidated.** The unchanged compact map takes seconds to cross. This pass intentionally avoids padded dialogue, repeated laps or forced waiting; reaching the requested duration requires more playable space/activities and a timed casual-player session. The user was asked about that scope tradeoff; no response was available during implementation.
+
+The user subsequently requested committing everything and pushing, including the baseline package/config/design files. `CURRENT_TASK.md` remains the prior completed task, as required by manual advancement rules.

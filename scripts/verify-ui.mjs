@@ -48,8 +48,16 @@ try {
     return result.result.value;
   };
   const waitForMenu = async () => {
-    for (let attempt=0; attempt<100 && !(await evaluate(`window.__testGame?.scene.isActive('MainMenu')`)); attempt++) await wait(100);
-    assert.equal(await evaluate(`window.__testGame?.scene.isActive('MainMenu')`), true, JSON.stringify(errors));
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try {
+        if (await evaluate(`window.__testGame?.scene.isActive('MainMenu')`)) return;
+      } catch (error) {
+        // Reload can destroy the execution context between the poll and its reply.
+        if (!/Inspected target navigated|Execution context was destroyed|Cannot find context/.test(String(error))) throw error;
+      }
+      await wait(100);
+    }
+    assert.fail('Main menu did not load: ' + JSON.stringify(errors));
   };
   const state = expression => evaluate(`(()=>{const s=window.__testGame.scene.getScene('World');return (${expression})})()`);
   const key = (key, type = 'keyDown') => send('Input.dispatchKeyEvent', { type, key, text: type === 'keyDown' && key === 'Enter' ? '\r' : undefined, code: key.length === 1 ? `Key${key.toUpperCase()}` : key, windowsVirtualKeyCode: ({ Enter: 13, Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, ' ': 32 })[key] ?? key.toUpperCase().charCodeAt(0) });
@@ -89,9 +97,9 @@ try {
     await press('Escape');
     assert.equal(await evaluate('document.querySelector("dialog").open'), false);
   }
-  await press('o'); await click('#equip-berry');
-  assert.equal(await state('s.outfitId'), 'berry');
-  assert.equal(await evaluate('document.querySelector("#equip-berry").getAttribute("aria-pressed")'), 'true');
+  await press('o'); assert.equal(await evaluate('!!document.querySelector("#equip-berry")'), false); await click('#equip-sky');
+  assert.equal(await state('s.outfitId'), 'sky');
+  assert.equal(await evaluate('document.querySelector("#equip-sky").getAttribute("aria-pressed")'), 'true');
   await screenshot('wardrobe');
   await click('#rider-tab'); await click('#equip-chestnut'); await click('#close-window');
   await press('h'); await click('#tack-tab'); await click('#stable-tab'); await click('#decorate-window'); await click('#horse-tab'); await screenshot('horse'); await press('Escape');
@@ -102,15 +110,7 @@ try {
   assert.equal(await state('s.playerBody.speed'), 0);
   await place(200,390); await press('e');
   assert.ok(await evaluate(`document.querySelector('.reward-toast').textContent.includes('Prrrr')`));
-  await place(850, 550); await press('e');
-  assert.equal(await state('s.questIndex'), 1);
-  await screenshot('dialogue'); await press('Enter');
-  assert.equal(await evaluate('document.querySelector("dialog").open'), false);
-  await place(1300, 420); await place(1320, 820); await press('e');
-  assert.equal(await state('s.inventory.get("wildflower")'), 1);
-  await place(975, 650); await press('e');
-  assert.equal(await state('s.mounted'), true);
-  assert.equal(await state('s.questIndex'), 4);
+  await place(975,650); await press('e'); assert.equal(await state('s.mounted'), true);
   // Collision circle must be centered on the horse, and reversing must not mirror its physics body.
   assert.ok(await state('Math.abs(s.horseBody.center.x-s.horse.display.x)<1'));
   await key('s'); await wait(100); const accelerating = await state('s.horseBody.velocity.y');
@@ -124,43 +124,128 @@ try {
   assert.ok(await state('Math.hypot(s.horse.display.x-1050,s.horse.display.y-550)>=72'));
   await place(45, 650, true); await key('a'); await wait(500); await key('a', 'keyUp'); await wait(300);
   assert.ok(await state('s.horse.display.x>=25'));
-  await place(975, 650, true); await press('r'); await click('#cancel-race');
-  assert.equal(await state('s.raceCheckpointIndex'), null);
-  await press('r'); await screenshot('briefing'); await click('#ready-race');
-  assert.equal(await state('s.raceCheckpointIndex'), null);
-  const countdownPosition = await state('[s.horse.display.x,s.horse.display.y]');
-  await key('d'); await wait(250); await key('d', 'keyUp');
-  assert.deepEqual(await state('[s.horse.display.x,s.horse.display.y]'), countdownPosition);
-  await screenshot('countdown'); await wait(2900);
-  assert.equal(await state('s.raceCheckpointIndex'), 0);
-  assert.equal(await evaluate('document.querySelector(".race-hud").hidden'), false);
-  await press('Escape'); const elapsed = await state('s.raceElapsedMs'); await wait(400);
-  assert.equal(await state('s.raceElapsedMs'), elapsed); await press('Escape');
-  await place(930, 940, true); assert.equal(await state('s.raceCheckpointIndex'), 1);
-  await screenshot('race');
-  // Resume an active race through the unchanged save format.
-  await wait(1100); await send('Page.reload'); await waitForMenu(); await press('Enter'); await wait(200);
-  assert.equal(await state('s.raceCheckpointIndex'), 1);
-  await place(1500, 430, true); await place(700, 280, true);
-  assert.equal(await state('s.raceCheckpointIndex'), null);
-  assert.equal(await state('s.inventory.get("horse-apple")'), 2);
-  assert.equal(await evaluate('document.querySelector("#window-title").textContent'), 'A lovely ride!');
-  await screenshot('results'); await click('#finish-race');
-  assert.equal(await evaluate('document.querySelector(".race-hud").hidden'), true);
-  assert.equal(await state('s.checkpointMarkers.every(m=>!m.visible)'), true);
-  await press('e'); assert.equal(await state('s.mounted'), false);
-  await place(800, 550); await press('e'); await press('Enter');
-  await place(250, 280); await screenshot('village'); await press('e'); await press('Enter');
-  await place(1400, 320); await wait(1500); await screenshot('echo'); await place(1480, 300); assert.equal(await state('s.echoQuestIndex'), 3);
-  assert.equal(await state('s.activeDialogueId'), 'birthday-finale'); await screenshot('finale'); await press('Enter');
-  await place(360, 330); await press('e'); await click('#browse-shop'); await screenshot('shop'); await click('#leave-shop');
-  await press('i'); assert.ok(await evaluate('document.querySelector("dialog").textContent.includes("Horse Apple")')); await press('Escape');
-  // Race cancellation must remove all race presentation.
-  await place(700, 280); await press('e'); await place(975, 650, true); await press('r'); await click('#ready-race'); await wait(3150); await press('e');
+  // Accelerated fresh-save story integration: teleport travel, use real interaction/menu inputs.
+  // This checks progression and persistence; it is not a 45–75 minute pacing measurement.
+  const objectives = await evaluate(`import('/src/data/story.ts').then(module=>module.storyObjectives)`);
+  const dismount = async () => { if (await state('s.mounted')) await press('e'); };
+  const mount = async () => {
+    if (await state('s.mounted')) return;
+    await place(1000,1000,true); await place(1000,1000); await press('e');
+    assert.equal(await state('s.mounted'), true);
+  };
+  const reload = async () => { await wait(1100); await send('Page.reload'); await waitForMenu(); await press('Enter'); await wait(150); };
+  await dismount(); await place(360,330); await press('e'); await click('#browse-shop'); await click('#claim-outfit'); await press('Escape');
+  assert.equal(await state('s.storyIndex'), 0, 'Optional early shopping does not advance the story');
+  assert.equal(await state('s.inventory.get("berry-gift")'), 1);
+  const parserChecks = await evaluate(`(async()=>{
+    const {parseGameSave,loadGameSave}=await import('/src/data/save.ts');
+    const save=loadGameSave();
+    const invalid=[-1,1.5,${objectives.length + 1},'1',null].map(storyIndex=>parseGameSave(JSON.stringify({...save,storyIndex}))===null);
+    const legacy={...save};delete legacy.storyIndex;
+    const unfinished=parseGameSave(JSON.stringify({...legacy,firstRideIndex:0,echoQuestIndex:0}));
+    const completed=parseGameSave(JSON.stringify({...legacy,firstRideIndex:4,echoQuestIndex:3}));
+    return {invalid,unfinished:unfinished?.storyIndex,completed:completed?.storyIndex};
+  })()`);
+  assert.deepEqual(parserChecks,{invalid:[true,true,true,true,true],unfinished:0,completed:objectives.length});
+  const waitForRace = async () => {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (await state('s.countdownMs === 0 && s.raceCheckpointIndex !== null')) { await wait(150); return; }
+      await wait(100);
+    }
+    assert.fail('Race countdown did not finish');
+  };
+  const runRace = async () => {
+    const apples = await state('s.inventory.get("horse-apple") ?? 0');
+    await place(975, 650, true); await press('r'); await click('#cancel-race');
+    assert.equal(await state('s.raceCheckpointIndex'), null);
+    await press('r'); await screenshot('briefing'); await click('#ready-race');
+    assert.equal(await state('s.raceCheckpointIndex'), null);
+    const countdownPosition = await state('[s.horse.display.x,s.horse.display.y]');
+    await key('d'); await wait(250); await key('d', 'keyUp');
+    assert.deepEqual(await state('[s.horse.display.x,s.horse.display.y]'), countdownPosition);
+    await screenshot('countdown'); await wait(2900);
+    assert.equal(await state('s.raceCheckpointIndex'), 0);
+    assert.equal(await evaluate('document.querySelector(".race-hud").hidden'), false);
+    await press('Escape'); const elapsed = await state('s.raceElapsedMs'); await wait(400);
+    assert.equal(await state('s.raceElapsedMs'), elapsed); await press('Escape');
+    await place(930, 940, true); assert.equal(await state('s.raceCheckpointIndex'), 1);
+    await screenshot('race');
+    // Resume an active race through the unchanged save format.
+    await wait(1100); await send('Page.reload'); await waitForMenu(); await press('Enter'); await wait(200);
+    assert.equal(await state('s.raceCheckpointIndex'), 1);
+    await place(1500, 430, true); await place(700, 280, true);
+    assert.equal(await state('s.raceCheckpointIndex'), null);
+    assert.equal(await state('s.inventory.get("horse-apple")'), apples + 1);
+    assert.equal(await evaluate('document.querySelector("#window-title").textContent'), 'A lovely ride!');
+    await screenshot('results'); await click('#finish-race');
+    assert.equal(await evaluate('document.querySelector(".race-hud").hidden'), true);
+    assert.equal(await state('s.checkpointMarkers.every(m=>!m.visible)'), true);
+    await wait(1100); await send('Page.reload'); await waitForMenu(); await press('Enter');
+    assert.equal(await state('s.inventory.get("horse-apple")'), apples + 1);
+
+  };
+  for (let index = 0; index < objectives.length; index++) {
+    const objective = objectives[index];
+    assert.equal(await state('s.storyIndex'), index, objective.target);
+    if (objective.type === 'ride') {
+      await mount(); await place(objective.x, objective.y, true);
+    } else if (objective.type === 'mount') {
+      await dismount(); await mount();
+    } else if (objective.type === 'race') {
+      await runRace();
+    } else if (objective.type === 'equip') {
+      await press('o'); await click('#outfits-tab'); await click('#equip-sky'); await press('Escape');
+    } else if (objective.type === 'decorate') {
+      await press('h'); await click('#stable-tab'); await click('#decorate-window'); await press('Escape');
+    } else {
+      await dismount();
+      const locations = { 'stable-keeper':[800,550], 'village-baker':[360,330], 'trail-guide':[250,280], 'stable-cat':[720,530], 'calico-cat':[450,410], 'gray-cat':[200,390], 'bakery-gift':[360,330] };
+      const [x,y] = locations[objective.target] ?? [objective.x,objective.y];
+      await place(x,y); await press('e');
+      if (objective.type === 'shop') {
+        await click('#browse-shop'); await screenshot('shop'); await click('#claim-outfit');
+        assert.equal(await state('s.inventory.get("berry-gift")'), 1);
+        await press('Escape');
+      }
+    }
+    assert.equal(await state('s.storyIndex'), index + 1, `Completed ${objective.target}`);
+    if (objective.type === 'inspect') {
+      assert.equal(await evaluate('document.querySelector("dialog").open'), true);
+      if (objective.target === 'fragment-meadow' || objective.target === 'birthday-finale') {
+        const text = await evaluate('document.querySelector(".dialogue-copy").textContent');
+        await reload();
+        assert.equal(await state('s.storyIndex'), index + 1);
+        assert.equal(await evaluate('document.querySelector(".dialogue-copy").textContent'), text);
+      }
+      if (objective.target === 'birthday-finale') {
+        const gift = await evaluate(`import('/src/data/birthdayGift.ts').then(module=>module.birthdayGift)`);
+        assert.ok(await evaluate(`document.querySelector('.dialogue-copy').textContent.includes(${JSON.stringify(gift.message)})`));
+        await screenshot('finale');
+      }
+    }
+    if (await evaluate('document.querySelector("dialog").open')) await press('Enter');
+    if (objective.chapterEnd && objective.target !== 'birthday-finale') {
+      await reload(); assert.equal(await state('s.storyIndex'), index + 1);
+    }
+  }
+  assert.equal(await state('s.inventory.get("echo-fragment")'), 3);
+  assert.equal(await state('s.inventory.get("echo-tack")'), 1);
+  assert.equal(await state('s.inventory.get("teal-posy")'), 1);
+  assert.equal(await state('s.inventory.get("horse-apple")'), 1);
+  await press('o'); await click('#outfits-tab'); await click('#equip-birthday-teal'); await press('Escape');
+  await press('h'); await click('#tack-tab');
+  assert.ok(await evaluate('document.querySelector("dialog").textContent.includes("Fitted")'));
+  await click('#stable-tab');
+  for (let n=0; n<4 && await state('s.decorationSelections.get("window")') !== 'echo-lantern'; n++) await click('#decorate-window');
+  assert.equal(await state('s.decorationSelections.get("window")'), 'echo-lantern'); await press('Escape');
+  await reload();
+  assert.deepEqual(await state('[s.outfitId,s.decorationSelections.get("window"),s.inventory.get("echo-tack")]'), ['birthday-teal','echo-lantern',1]);
+  // Finished story remains free roam, with optional race retries.
+  await mount(); await place(975,650,true); await press('r'); await click('#ready-race'); await waitForRace(); await press('e');
   assert.equal(await state('s.raceCheckpointIndex'), null);
   assert.equal(await state('s.checkpointMarkers.every(m=>!m.visible)'), true);
   // Ride a complete lap using real key events, routing around the clearing's obstacles.
-  await press('e'); await press('r'); await click('#ready-race'); await wait(3150);
+  await press('e'); await press('r'); await click('#ready-race'); await waitForRace();
   const rideTo = async (targetX, targetY) => {
     const held = new Set();
     for (let step = 0; step < 100; step++) {
@@ -192,12 +277,12 @@ try {
     await screenshot(`wardrobe-${width}`); await press('Escape');
   }
   await wait(1100); await send('Page.reload'); await waitForMenu(); await press('Enter');
-  assert.deepEqual(await state('[s.outfitId,s.appearanceId,s.questIndex,s.echoQuestIndex,s.inventory.get("horse-apple")]'), ['berry','chestnut',4,3,4]);
+  assert.deepEqual(await state('[s.outfitId,s.appearanceId,s.storyIndex,s.inventory.get("horse-apple")]'), ['birthday-teal','chestnut',objectives.length,2]);
   assert.equal(await evaluate('document.querySelectorAll("dialog").length'), 1);
   assert.ok(await evaluate(`Array.from(document.images).every(img=>img.complete && img.naturalWidth>0)`));
   console.log('Observed browser FPS:', await evaluate('Math.round(window.__testGame.loop.actualFps)'));
   assert.deepEqual(errors, []);
-  console.log('PASS: windows, focus, equip, dialogue, quests/rewards, shop, movement/braking/collisions, countdown, race pause/resume/finish/cancel, save reload, desktop layouts; no browser errors.');
+  console.log('PASS: windows, focus, equip, dialogue, 38 story objectives (accelerated travel), rewards, shop, movement/braking/collisions, countdown, race pause/resume/finish/cancel, save reload, desktop layouts; no browser errors.');
 } finally {
   socket?.close();
   browser.kill();

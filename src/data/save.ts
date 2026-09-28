@@ -4,6 +4,7 @@ import { items, type ItemId } from './items';
 import { outfits, type OutfitId } from './outfits';
 import { riderAppearances, type RiderAppearanceId } from './riderAppearances';
 import { firstRideQuest, echoQuest } from './quests';
+import { storyObjectives } from './story';
 import { clearingRace } from './race';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../config/world';
 
@@ -18,7 +19,8 @@ export type SavedDialogueId =
   | 'echo-guide-clue'
   | 'village-baker'
   | 'trail-guide'
-  | 'birthday-finale';
+  | 'birthday-finale'
+  | 'story-inspect';
 
 export interface GameSave {
   version: typeof SAVE_VERSION;
@@ -28,6 +30,7 @@ export interface GameSave {
   horse: { x: number; y: number };
   mounted: boolean;
   outfitId: OutfitId;
+  storyIndex: number;
   firstRideIndex: number;
   echoQuestIndex: number;
   inventory: Partial<Record<ItemId, number>>;
@@ -53,7 +56,7 @@ function isPosition(value: unknown): value is { x: number; y: number } {
 function isSavedDialogueId(value: unknown): value is SavedDialogueId {
   return value === 'stable-keeper-greeting' || value === 'echo-keeper-clue' ||
     value === 'echo-guide-clue' || value === 'village-baker' ||
-    value === 'trail-guide' || value === 'birthday-finale';
+    value === 'trail-guide' || value === 'birthday-finale' || value === 'story-inspect';
 }
 
 export function parseGameSave(serialized: string | null): GameSave | null {
@@ -72,6 +75,9 @@ export function parseGameSave(serialized: string | null): GameSave | null {
       value.echoQuestIndex > echoQuest.objectives.length) return null;
     if (value.echoQuestIndex > 0 && value.firstRideIndex < firstRideQuest.objectives.length) return null;
 
+    // Additive v1 extension: old adventures start the new story, completed gifts stay complete.
+    const storyIndex = value.storyIndex === undefined ? (value.echoQuestIndex === echoQuest.objectives.length ? storyObjectives.length : 0) : value.storyIndex;
+    if (typeof storyIndex !== 'number' || !Number.isInteger(storyIndex) || storyIndex < 0 || storyIndex > storyObjectives.length) return null;
     const inventory: Partial<Record<ItemId, number>> = {};
     for (const [id, count] of Object.entries(value.inventory)) {
       if (!hasId(id, items) || typeof count !== 'number' || !Number.isSafeInteger(count) ||
@@ -97,9 +103,11 @@ export function parseGameSave(serialized: string | null): GameSave | null {
 
     const dialogue = value.dialogue;
     if (dialogue !== null && !isSavedDialogueId(dialogue)) return null;
+    if (dialogue === 'story-inspect' && storyObjectives[storyIndex - 1]?.type !== 'inspect') return null;
 
     return {
       version: SAVE_VERSION,
+      storyIndex,
       appearanceId: value.appearanceId,
       horseId: value.horseId,
       player: value.player,

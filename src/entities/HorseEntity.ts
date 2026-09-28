@@ -3,6 +3,7 @@ import { horses, type HorseDefinition } from '../data/horses';
 
 export class HorseEntity {
   private index = 0;
+  private readonly ribbon: Phaser.GameObjects.Text;
   facing = 1;
   private readonly sprite: Phaser.GameObjects.Image;
   readonly display: Phaser.GameObjects.Container;
@@ -11,13 +12,18 @@ export class HorseEntity {
     const shadow = scene.add.ellipse(0, 23, 82, 20, 0x203b32, 0.3);
     this.sprite = scene.add.image(0, -12, 'horses').setScale(1.25);
     this.display = scene.add.container(x, y, [shadow, this.sprite]);
+    this.ribbon = scene.add.text(30, -28, '◆', { fontSize: '16px', color: '#77ffe0' }).setVisible(false);
+    this.display.add(this.ribbon);
     this.setDefinition(definition);
   }
+
+  setEchoTack(unlocked: boolean): void { this.ribbon.setVisible(unlocked); }
 
   setFacing(horizontal: number): void {
     if (Math.abs(horizontal) > 0.1) {
       this.facing = Math.sign(horizontal);
       this.sprite.setFlipX(horizontal < 0);
+      this.ribbon.setX(30 * this.facing);
     }
   }
 
