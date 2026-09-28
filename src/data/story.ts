@@ -177,6 +177,15 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
       }
     ],
     payoff: 'A strange feeling... these memories seem connected to Hana and Tian.'
+  },
+  {
+    name: 'A Memory Made for You',
+    reward: 'echo-tack',
+    objectives: [
+      { type: 'inspect', target: 'oak-ribbon', x: 61065, y: 44045, description: 'Dismount and inspect the ribbon on the eastern side of the old oak', payoff: `A tiny tag reads “For ${birthdayGift.recipient}.” The whole trail was an invitation.` },
+      { type: 'inspect', target: 'birthday-finale', x: 61000, y: 44000, description: 'Open the birthday Echo beneath the old oak' },
+    ],
+    payoff: 'Happy birthday. Your gifts are ready, your horse is waiting, and Evervale is yours to wander.',
   }
 ];
 
