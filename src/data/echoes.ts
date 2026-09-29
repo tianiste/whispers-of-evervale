@@ -2,8 +2,10 @@ import type { ItemId } from './items';
 
 // Adding an Echo: define it here, add a stage for its setting in src/art/EchoStages.ts,
 // a site look in src/art/EchoSites.ts, and an `echo` objective in src/data/story.ts.
-export type EchoId = 'spark' | 'break' | 'half-bed';
-export type EchoSetting = 'club' | 'split' | 'camper';
+export type EchoId = 'spark' | 'break' | 'half-bed' | 'cuisine' | 'first-winter' | 'future';
+export type EchoSetting = 'club' | 'split' | 'camper' | 'flat' | 'winter' | 'future';
+/** Canvas minigames in src/minigames; content for each lives in src/data/echoGames.ts. */
+export type MinigameId = 'holiday-map' | 'creature-catch' | 'foil-tray' | 'card-pack' | 'snowball' | 'orehi' | 'future-home';
 
 export interface EchoOption {
   text: string;
@@ -17,6 +19,8 @@ export interface QuizStep {
   id: string;
   question: string;
   options: readonly EchoOption[];
+  /** Every option moves the memory on; options without a response go straight to the next step. */
+  open?: true;
   /** Stage animation played when the step is solved. */
   cue?: string;
 }
@@ -31,7 +35,31 @@ export interface MatchStep {
   solved: string;
 }
 
-export type EchoStep = QuizStep | MatchStep;
+/** Steps played on the Echo canvas with the panel hidden. */
+interface CanvasStep {
+  id: string;
+  /** Shown in the panel before the step starts. */
+  intro: string;
+  solved: string;
+  /** Stage cue that sets the scene before the intro, e.g. a backdrop change. */
+  backdrop?: string;
+  /** Stage cue played once the step is solved. */
+  cue?: string;
+}
+
+/** Drag each fragment into its matching slot of the broken memory. */
+export interface ReconstructStep extends CanvasStep {
+  kind: 'reconstruct';
+  fragments: readonly string[];
+  misses: readonly string[];
+}
+
+export interface PlayStep extends CanvasStep {
+  kind: 'play';
+  game: MinigameId;
+}
+
+export type EchoStep = QuizStep | MatchStep | ReconstructStep | PlayStep;
 
 export interface EchoDefinition {
   id: EchoId;
@@ -46,6 +74,14 @@ export interface EchoDefinition {
   /** Hana's line back in Evervale; escalates from curiosity to realization. */
   reflection: string;
   reward: ItemId;
+  /** Shown under the title for the whole Echo. */
+  memoryDate?: string;
+  /** Lines held on the darkened canvas before the intro. */
+  prelude?: readonly string[];
+  /** Granted along with the keepsake. */
+  gifts?: readonly ItemId[];
+  /** The completion lines play on the canvas, then the birthday reveal replaces the usual return panel. */
+  finale?: true;
 }
 
 export const wrongAnswerLines = ['The Echo seems unconvinced.', 'That is one version of events.', 'Suspicious answer.'] as const;
@@ -157,16 +193,132 @@ export const echoes: readonly EchoDefinition[] = [
     reflection: 'Wait. That was Banjole. That was our camper van. These aren’t Evervale’s memories — they’re ours. …So who has been collecting them?',
     reward: 'echo-seashell',
   },
+  {
+    id: 'cuisine',
+    numeral: 'IV',
+    title: 'Improvised Cuisine',
+    setting: 'flat',
+    site: { x: 1600, y: 560, name: 'the seaside picnic' },
+    intro: [
+      'Salt air again, but no camper van this time. A little rented flat by the sea, and nobody else.',
+      'Your first holiday alone. What could possibly go wrong in a kitchen this small?',
+    ],
+    steps: [
+      {
+        kind: 'reconstruct', id: 'fragments', cue: 'room',
+        intro: 'The memory has broken into pieces. Drag each fragment back into its place.',
+        fragments: ['Sea breeze', 'A tiny kitchen', 'Two phones', 'Just us'],
+        misses: ['That piece belongs somewhere else.', 'The Echo tilts its head. Wrong spot.', 'Close. The sea disagrees.'],
+        solved: 'A rented flat by the sea. Just the two of you, finally.',
+      },
+      {
+        kind: 'play', id: 'holiday', game: 'holiday-map', cue: 'map',
+        intro: 'Every day had a shape. Put each part of the holiday where it happened.',
+        solved: 'Walks every day, the game on every corner, and dinner in a kitchen built for one person.',
+      },
+      {
+        kind: 'play', id: 'creatures', game: 'creature-catch', cue: 'phones',
+        intro: 'Evening walk. Both phones buzz at once: something rare is nearby.',
+        solved: 'Three catches, several thousand steps and one very confused seagull.',
+      },
+      {
+        kind: 'play', id: 'tray', game: 'foil-tray', cue: 'dinner',
+        intro: 'We want lasagne. We do not own the correct tray. We do own a lot of aluminium foil.',
+        solved: 'It held. Mostly. Then came tacos, the lasagne, and the special cookies.',
+      },
+    ],
+    completion: ['Walks every day, creatures on every corner, and a lasagne tray made of pure optimism.', 'The first holiday alone was chaos. Affectionate, delicious chaos.'],
+    reflection: 'The foil tray. Nobody else knows about the foil tray! Whoever is gathering these was paying very close attention.',
+    reward: 'echo-foil-tray',
+  },
+  {
+    id: 'first-winter',
+    numeral: 'V',
+    title: 'Cards, Snow, and Orehi',
+    setting: 'winter',
+    site: { x: 470, y: 930, name: 'the frosted hollow' },
+    intro: [
+      'Cold air, pine needles and the smell of something baking. Your first winter together.',
+      'It starts on Christmas Eve, with two little packs of cards.',
+    ],
+    steps: [
+      {
+        kind: 'play', id: 'cards', game: 'card-pack', backdrop: 'eve', cue: 'binder',
+        intro: 'Christmas Eve. You each bought a pack for the other. Open yours.',
+        solved: 'Christmas Eve, birthdays and a few “just because” days. The collection kept growing.',
+      },
+      {
+        kind: 'play', id: 'snowball', game: 'snowball', backdrop: 'snow', cue: 'snow-angels',
+        intro: 'Evening. Fresh snow outside, Maj is already armed, and nobody is safe.',
+        solved: 'Nobody won. Everybody ended up flat on their back in the snow anyway.',
+      },
+      {
+        kind: 'play', id: 'orehi', game: 'orehi', backdrop: 'kitchen', cue: 'orehi-plate',
+        intro: 'Back inside with red cheeks and wet socks. Time for orehi with Nutella.',
+        solved: 'Little walnut cookies with Nutella in the middle, gone far too quickly.',
+      },
+    ],
+    completion: ['Cards on Christmas Eve, snow down everyone’s collar, and orehi with Nutella.', 'The first winter was warm in all the ways that mattered.'],
+    reflection: 'Our cards. Maj face-down in the snow. The orehi. Every Echo has been us. Whoever is collecting them knows us very, very well.',
+    reward: 'echo-banca-card',
+  },
+  {
+    id: 'future',
+    numeral: 'VI',
+    title: 'Not Yet',
+    setting: 'future',
+    site: { x: 900, y: 548, name: 'the light beside Sunmeadow Stable' },
+    memoryDate: 'MEMORY DATE: UNKNOWN',
+    prelude: ['MEMORY DATE: UNKNOWN', 'This memory has not happened yet.'],
+    intro: [
+      'Every Echo so far has pulled you back into something that already happened.',
+      'This one hesitates. Then it shows you somewhere you have never been: warm, a little messy, and oddly familiar.',
+    ],
+    steps: [
+      {
+        kind: 'reconstruct', id: 'blur', cue: 'room',
+        intro: 'The memory is blurry. It hasn’t happened yet, so the pieces aren’t sure where they go.',
+        fragments: ['Our couch', 'Something cooking', 'Five cats', 'One good dog'],
+        misses: ['That piece belongs somewhere else.', 'Not there. The future is a little particular.', 'Close. The cats disagree.'],
+        solved: 'A living room, a kitchen that smells of garlic, and a lot of animals. It looks like home.',
+      },
+      {
+        kind: 'play', id: 'home', game: 'future-home',
+        intro: 'Nobody here is in a hurry. Look around, and click anything that feels like home.',
+        solved: 'Dinner on the stove, something on the TV and every single animal. A normal evening. A very good one.',
+      },
+      {
+        kind: 'quiz', id: 'cats', open: true, cue: 'cats', question: 'How many cats are too many?',
+        options: [
+          { text: '1', response: 'Nomi agrees, as long as the one is her. The other four have filed a complaint.' },
+          { text: '3', response: 'Three. Miki counted himself twice and got to five anyway.' },
+          { text: '5', response: 'Five. Exactly the current number. What a coincidence.' },
+          { text: 'There is no such number', response: 'Correct, even though nothing here is wrong. The cats have been informed. Bolt would like it noted that he is not a cat.' },
+        ],
+      },
+      {
+        kind: 'quiz', id: 'evening', open: true, cue: 'evening', question: 'What do we do on a quiet evening?',
+        options: [
+          { text: 'Play games', response: 'Squad up. Someone lands in the worst possible spot. It is Tian. It is always Tian.' },
+          { text: 'Watch anime', response: 'One episode. Then “just one more”. Then it is somehow two in the morning.' },
+          { text: 'Annoy the cats', response: 'Nomi has been annoyed. Nomi will remember this.' },
+          { text: 'All of the above', response: 'Games, then anime, then the cats get annoyed, then dinner. Tian is cooking. Obviously.' },
+        ],
+      },
+      {
+        kind: 'quiz', id: 'forever', open: true, cue: 'unfinished', question: 'How long does this memory last?',
+        options: [{ text: 'One evening' }, { text: 'A few years' }, { text: 'Forever' }, { text: 'Until the cats want dinner' }],
+      },
+    ],
+    completion: ['There isn’t a correct answer yet.', 'We still have to make this one.'],
+    reflection: '…Wait. The cats, the horse, the foil tray, the orehi. Tian. Did you make an entire game just to say happy birthday?',
+    reward: 'echo-spare-key',
+    gifts: ['echo-tack', 'cat-bed'],
+    finale: true,
+  },
 ];
 
-/** Next batch. The journal counts them so the mystery reads as unfinished. */
-export const plannedEchoes = [
-  { numeral: 'IV', working: 'First holiday alone', motifs: ['Pokémon GO', 'tacos', 'aluminium-foil lasagne tray'] },
-  { numeral: 'V', working: 'Cards and snow', motifs: ['cards', 'snow', 'orehi with Nutella'] },
-  { numeral: 'VI', working: 'The future memory', motifs: ['future apartment', 'cats', 'Bolt', 'birthday reveal'] },
-] as const;
-
-export const echoTotal = echoes.length + plannedEchoes.length;
+export const echoTotal = echoes.length;
 
 export function isEchoId(value: unknown): value is EchoId {
   return echoes.some(({ id }) => id === value);

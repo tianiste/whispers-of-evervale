@@ -1,7 +1,7 @@
 import type { ItemId } from './items';
 
 export type DecorationId = 'flower-box' | 'lantern' | 'wreath' | 'echo-lantern' | 'teal-posy'
-  | 'glow-sticks' | 'phone-charm' | 'banjole-shell';
+  | 'glow-sticks' | 'phone-charm' | 'banjole-shell' | 'foil-tray' | 'banca-card' | 'spare-key' | 'cat-bed';
 
 export interface DecorationDefinition {
   id: DecorationId;
@@ -18,6 +18,10 @@ export const decorations = [
   { id: 'glow-sticks', name: 'Purple glow sticks', symbol: '✧', color: '#c07bff', unlockItem: 'echo-glowstick' },
   { id: 'phone-charm', name: 'Phone charm chime', symbol: '☎', color: '#ffc861', unlockItem: 'echo-phone-charm' },
   { id: 'banjole-shell', name: 'Banjole seashell', symbol: '✺', color: '#f3e0b8', unlockItem: 'echo-seashell' },
+  { id: 'foil-tray', name: 'Framed foil lasagne tray', symbol: '▣', color: '#dfe6ea', unlockItem: 'echo-foil-tray' },
+  { id: 'banca-card', name: 'Framed Banca holo card', symbol: '❖', color: '#ffd98a', unlockItem: 'echo-banca-card' },
+  { id: 'spare-key', name: 'Spare key on a teal keyring', symbol: '⚷', color: '#77ffe0', unlockItem: 'echo-spare-key' },
+  { id: 'cat-bed', name: 'Cat bed for five', symbol: '♥', color: '#f2a8c0', unlockItem: 'cat-bed' },
   { id: 'flower-box', name: 'Flower box', symbol: '✿', color: '#e89caf' },
   { id: 'lantern', name: 'Lantern', symbol: '✦', color: '#f2c66d' },
   { id: 'wreath', name: 'Wreath', symbol: '❀', color: '#9fca8e' },

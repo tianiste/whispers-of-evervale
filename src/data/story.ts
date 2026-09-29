@@ -1,6 +1,8 @@
 import type { ItemId } from './items';
-import { birthdayGift } from './birthdayGift';
+import { giftConfig } from './birthdayGift';
 import { getEcho, type EchoId } from './echoes';
+import { styleParade } from './fashion';
+import { bolt } from './village';
 
 export interface TrailPoint {
   id: string;
@@ -10,7 +12,8 @@ export interface TrailPoint {
 }
 
 export interface StoryObjective {
-  type: 'talk' | 'ride' | 'inspect' | 'cat' | 'equip' | 'decorate' | 'race' | 'mount' | 'shop' | 'trail' | 'care' | 'choose-horse' | 'echo';
+  type: 'talk' | 'ride' | 'inspect' | 'cat' | 'pet' | 'equip' | 'decorate' | 'race' | 'mount' | 'shop' | 'trail' | 'care' | 'groom'
+    | 'fashion' | 'choose-horse' | 'echo';
   target: string;
   description: string;
   x?: number;
@@ -30,13 +33,12 @@ function echoObjective(id: EchoId, description: string): StoryObjective {
   return { type: 'echo', target: id, x: site.x, y: site.y, description };
 }
 
-// The final birthday reveal is reserved for Echo VI; `birthdayFinale` stays in birthdayGift.ts for it.
 export const storyChapters: { name: string; objectives: StoryObjective[]; payoff: string; reward?: ItemId }[] = [
   {
     name: 'Welcome to Sunmeadow',
     objectives: [
-      { type: 'talk', target: 'stable-keeper', x: 800, y: 550, description: 'Say hello to the Stable Keeper outside Sunmeadow Stable', payoff: `Welcome to Sunmeadow, ${birthdayGift.recipient}! WASD to walk, E to talk or take a closer look. Have a wander. The stable cat will find you first.` },
-      { type: 'inspect', target: 'stable-nameplate', x: 855, y: 585, description: 'Take a look at the nameplate beside the stable door', payoff: `SUNMEADOW STABLE, and underneath, freshly painted: “${birthdayGift.recipient}”. Someone was expecting you.` },
+      { type: 'talk', target: 'stable-keeper', x: 800, y: 550, description: 'Say hello to the Stable Keeper outside Sunmeadow Stable', payoff: `Welcome to Sunmeadow, ${giftConfig.recipientName}! WASD to walk, E to talk or take a closer look. Have a wander. The stable cat will find you first.` },
+      { type: 'inspect', target: 'stable-nameplate', x: 855, y: 585, description: 'Take a look at the nameplate beside the stable door', payoff: `SUNMEADOW STABLE, and underneath, freshly painted: “${giftConfig.recipientName}”. Someone was expecting you.` },
       { type: 'cat', target: 'nomi', x: 740, y: 530, description: 'Pet Nomi, the stable cat. She likes company, within reason', payoff: 'Nomi sits on your foot. You have been adopted. Terms and conditions apply.' },
     ],
     payoff: 'A stable, a cat, and a keeper who already knows your name. The paddock horses are watching.',
@@ -48,7 +50,7 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
       { type: 'mount', target: 'chosen-horse', description: 'Stand beside your new horse and press E to mount' },
       { type: 'ride', target: 'lane-bend', x: 1160, y: 310, description: 'Ride up the lane to the northeast bend', payoff: 'An easy canter, a flick of an ear. You are getting to know each other.' },
       { type: 'ride', target: 'stable-home', x: 825, y: 600, description: 'Ride back down to the stable' },
-      { type: 'care', target: 'first-horse-care', description: 'Dismount beside your horse; H → Your horse to brush, water and give a treat', payoff: 'Brushed, watered, snacked. Your horse now considers you acceptable staff.' },
+      { type: 'care', target: 'first-horse-care', description: 'Dismount beside your horse; H → Your horse to brush (a quick groom), water and give a treat', payoff: 'Brushed, watered, snacked. Your horse now considers you acceptable staff.' },
     ],
     payoff: 'You have a horse. More importantly, your horse has you.',
   },
@@ -74,19 +76,19 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
   {
     name: 'Village Day',
     objectives: [
-      { type: 'talk', target: 'village-baker', x: 360, y: 330, description: 'Dismount and greet the baker outside the bakery', payoff: 'A welcome gift? Of course. Making you pay on your first day would be absolutely horrid, darling.' },
+      { type: 'talk', target: 'village-baker', x: 360, y: 330, description: 'Dismount and greet the baker outside the bakery', payoff: 'A welcome gift? Of course. Nobody pays on their first day in Sunmeadow. That is the rule, and I just made it up.' },
       { type: 'shop', target: 'bakery-gift', description: 'Open the bakery counter and collect your welcome gift' },
       { type: 'cat', target: 'miki', x: 450, y: 410, description: 'Pet Miki outside the bakery. You will hear him before you see him', payoff: 'Miki flops over and purrs like a small tractor. A loud, fluffy, very round tractor.' },
-      { type: 'inspect', target: 'race-notice', x: 480, y: 465, description: 'Read the riding notice southeast of the village', payoff: 'Clearing Canter: follow the gates, take your time. Everyone who finishes gets a treat. Start east of Sunmeadow Stable.' },
+      { type: 'inspect', target: 'race-notice', x: 480, y: 465, description: 'Read the riding notice southeast of the village', payoff: 'Meadow Sprint: jump the fences, splash past the puddles, take your time. Everyone who finishes gets a treat. Ask the Race Steward east of Sunmeadow Stable.' },
     ],
     payoff: 'A small gift and an invitation to ride. A good village day.',
   },
   {
     name: 'First Race',
     objectives: [
-      { type: 'mount', target: 'chosen-horse', description: 'Mount your horse for Clearing Canter' },
+      { type: 'mount', target: 'chosen-horse', description: 'Mount your horse for the Meadow Sprint' },
       { type: 'ride', target: 'race-arrival', x: 975, y: 650, description: 'Ride southeast to the race gate below the stable' },
-      { type: 'race', target: 'clearing-canter', description: 'Press R at the gate and finish Clearing Canter. Any time counts' },
+      { type: 'race', target: 'meadow-sprint', x: 1035, y: 612, description: 'Talk to the Race Steward (E) and ride the Meadow Sprint. Any time counts' },
       { type: 'inspect', target: 'finish-ribbon', x: 1030, y: 700, description: 'Dismount and inspect the ribbon just southeast of the race gate', payoff: 'Your horse noses the ribbon. Its teal thread starts to glow on its own. East of the gate, something answers.' },
     ],
     payoff: 'You finished together. And something else seems to have noticed.',
@@ -140,11 +142,70 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
     payoff: 'Three Echoes. Three of your memories. Evervale has some explaining to do.',
   },
   {
+    name: 'Not in the Records',
+    objectives: [
+      { type: 'talk', target: 'village-historian', x: 150, y: 290, description: 'Ask the Village Historian beside the village hall about the Echoes', payoff: 'A hard techno club? A GEN-I office? A camper van in Banjole? I checked every ledger since the founding. These memories aren’t in any Evervale records.' },
+      { type: 'fashion', target: 'style-parade', x: 480, y: 300, reward: styleParade.reward, description: 'Enter Madame Rosette’s Style Parade by the bakery. Any look that fits the theme wins', payoff: 'Three themes, three triumphs. The scarecrow will never recover.' },
+    ],
+    payoff: 'The village has no record of the Echoes. The Echoes, however, have excellent records of you.',
+  },
+  {
+    name: 'Echo IV — Improvised Cuisine',
+    objectives: [
+      { type: 'groom', target: 'race-ready', description: 'A longer ride needs a proper shine: dismount beside your horse, H → Your horse → Brush', payoff: 'Gleaming, brushed and extremely pleased with themselves. Ready for the forest.' },
+      { type: 'race', target: 'forest-run', x: 1035, y: 612, description: 'Talk to the Race Steward and ride the Forest Run', payoff: 'Through the pines and out the other side. Something silver glints near the gate.' },
+      { type: 'inspect', target: 'foil-glint', x: 1120, y: 700, description: 'Dismount and inspect the silver glint southeast of the race gate', payoff: 'Aluminium foil, folded into a very determined little boat. It smells of oregano. Silver hoofprints lead east.' },
+      {
+        type: 'trail', target: 'silver-hoofprints', glow: 0xd8f0ff, description: 'Ride after the silver hoofprints into the east meadow',
+        points: [
+          { id: 'east-fence', name: 'Silver hoofprints past the fence', x: 1250, y: 640 },
+          { id: 'east-meadow', name: 'Through the east meadow', x: 1420, y: 660 },
+          { id: 'sea-air', name: 'Where the air smells of the sea', x: 1510, y: 590 },
+        ],
+      },
+      echoObjective('cuisine', 'Dismount and touch the light at the seaside picnic'),
+      { type: 'decorate', target: 'foil-tray', description: 'Hang the foil lasagne tray in the stable: H → Stable, pick a slot', payoff: 'Framed. Displayed. Structurally questionable. Perfect.' },
+    ],
+    payoff: 'A foil tray on the stable wall. Nobody in Evervale will ever understand it.',
+  },
+  {
+    name: 'Echo V — Cards, Snow, and Orehi',
+    objectives: [
+      { type: 'inspect', target: 'summer-snowflake', x: 700, y: 760, description: 'Dismount and inspect the sparkle south of the paddock fence', payoff: 'A snowflake. In summer. It refuses to melt, and it smells faintly of Nutella. Frosty hoofprints drift southwest.' },
+      {
+        type: 'trail', target: 'frost-hoofprints', glow: 0xbfe8ff, description: 'Ride after the frosty hoofprints to the southwest',
+        points: [
+          { id: 'frost-grass', name: 'Frost on the summer grass', x: 700, y: 850 },
+          { id: 'frost-prints', name: 'Hoofprints in the frost', x: 610, y: 905 },
+          { id: 'first-snow', name: 'Where the snow begins', x: 560, y: 960 },
+        ],
+      },
+      echoObjective('first-winter', 'Dismount and touch the light in the frosted hollow'),
+    ],
+    payoff: 'Five Echoes: cards, snow and orehi among them. Somewhere, a sixth light is flickering.',
+  },
+  {
     name: 'More Echoes Are Stirring',
     objectives: [
-      { type: 'inspect', target: 'oak-stirring', x: 1480, y: 300, description: 'Follow the drifting lights to the old oak and dismount beneath it', payoff: 'The old oak hums. Somewhere inside it, more Echoes are still asleep. They are starting to stir.' },
+      { type: 'pet', target: bolt.id, x: bolt.x, y: bolt.y, description: `Something is splashing in the pond. Say hello to the ${bolt.breed}`, payoff: 'His collar says BOLT. Nobody in the village owns a black Flat-Coated Retriever, yet he acts like he has known you for years.' },
+      { type: 'inspect', target: 'oak-stirring', x: 1480, y: 300, description: 'Ride to the old oak in the northeast and dismount beneath its lights', payoff: 'Five lights circle the old oak. The sixth flickers, warm and unsteady, then slips out of the ring and drifts southwest, toward the stable.' },
     ],
-    payoff: 'More Echoes are stirring… For now, Evervale is yours to roam.',
+    payoff: 'Echoes restored: 5 / 6. One Echo remains, and it feels different. It isn’t waiting to be remembered.',
+  },
+  {
+    name: 'Echo VI — Not Yet',
+    objectives: [
+      {
+        type: 'trail', target: 'sixth-light', glow: 0x77ffe0, description: 'Mount up and follow the sixth light. It seems to know the way home',
+        points: [
+          { id: 'oak-meadow', name: 'The sixth light leaves the oak', x: 1330, y: 330 },
+          { id: 'north-lane', name: 'Down the lane it knows', x: 1200, y: 390 },
+          { id: 'almost-home', name: 'Almost home', x: 1080, y: 440 },
+        ],
+      },
+      echoObjective('future', 'Dismount and touch the light beside Sunmeadow Stable'),
+    ],
+    payoff: `All six Echoes restored. The last one hasn’t happened yet. Happy birthday, ${giftConfig.recipientName}.`,
   },
 ];
 
@@ -163,5 +224,11 @@ export const echoStartIndex = storyObjectives.findIndex(o => o.chapter === 'Echo
 export function activityIds(objective: StoryObjective | undefined): readonly string[] {
   if (objective?.type === 'trail') return objective.points?.map(point => point.id) ?? [];
   if (objective?.type === 'care') return careActions;
+  if (objective?.type === 'fashion') return styleParade.rounds.map(round => round.id);
   return [];
+}
+
+/** Activities whose steps must happen in order. */
+export function isOrderedActivity(objective: StoryObjective | undefined): boolean {
+  return objective?.type === 'trail' || objective?.type === 'fashion';
 }

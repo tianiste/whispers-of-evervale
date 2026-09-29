@@ -1,22 +1,22 @@
-# Batch 3A: campaign backbone and Echoes I–III
+# Release audit: birthday build
 
 agent_tier: orchestrator
 context_budget: medium
 
-Status: complete and validated; the user played the build and reported it working. This was a direct user request, not a backlog selection. Do not advance the backlog until the user accepts it.
+Status: fixes applied and validated. The user subsequently requested committing and pushing this updated build. No release tag was requested. This is a direct user request, not a backlog selection.
 
 ## Goal
-Restore a compiling build on the current 1800×1100 map. Implement the opening quests (Welcome to Sunmeadow, Meet Your Horse, Make It Yours), a reusable data-driven Echo framework and Echoes I–III, the five real cats, and explicit Echo save state. After Echo III, show a temporary "more Echoes are stirring" beat and return to free roam. The birthday ending stays reserved for Echo VI.
+Check that the October 1 build is ready to give to Hana, and fix only the critical or high-impact problems a full fresh-save playthrough turns up. No new features and no architecture changes.
 
 ## Allowed files
-Task-relevant content, scenes, UI, art modules, entities and save compatibility in src. Verification scripts and the package test script. Docs: CURRENT_STATE, QUEST_DESIGN, PERSONALIZATION, DATA_SCHEMAS, handoff. No dependencies and no world expansion.
+Rider art (`riders.png`, `rider-cream-*.png`), `riderAppearances.ts`, `village.ts` (Baker frame), `CharacterCreatorScene.ts`, `WorldScene.ts` (toasts, horse window text), `GameUI.ts` (toast duration), `style.css`, `scripts/verify-ui.mjs`, `docs/CURRENT_STATE.md`, `handoffs/latest.md`.
 
 ## Acceptance
-- Opening quests work; horse choice is in-world with Sky pre-filled and renameable; the creator only creates Hana.
-- Echoes I–III are playable, with setup, steps, affectionate retryable wrong answers, completion, keepsake and return.
-- Leaving or reloading mid-Echo resumes at the next step; restored Echoes persist explicitly.
-- The memories become suspiciously personal without a full reveal.
-- There are clear extension points for Echoes IV–VI.
+- Hana is blonde in the world, the wardrobe and races, matching her Echo figure; the other two looks are unchanged and saves are unaffected.
+- The creator works with the mouse.
+- The race track text is readable, and dialog buttons have consistent spacing.
+- Talk and inspect payoffs don't repeat as toasts, and chapter-end toasts keep the payoff and the reward.
+- The horse window's paddock direction matches the quest.
 
 ## Validation
-Typecheck, build, `npm test`, and the headless-Chrome fresh-save playthrough through Echo III with a browser error check. Commit locally only; the user asked for no push.
+Typecheck, build, `npm test`, and the headless-Chrome fresh-save playthrough, with checks for browser errors and failed asset requests.

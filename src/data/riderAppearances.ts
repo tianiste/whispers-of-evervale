@@ -1,5 +1,5 @@
 export const riderAppearances = [
-  { id: 'cream', name: 'Cream', color: 0xf4e9cf },
+  { id: 'cream', name: 'Blonde', color: 0xd9b85c },
   { id: 'chestnut', name: 'Chestnut', color: 0xb96545 },
   { id: 'midnight', name: 'Midnight', color: 0x425878 },
 ] as const;

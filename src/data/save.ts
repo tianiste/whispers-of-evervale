@@ -4,9 +4,11 @@ import { items, type ItemId } from './items';
 import { outfits, type OutfitId } from './outfits';
 import { riderAppearances, type RiderAppearanceId } from './riderAppearances';
 import { firstRideQuest, echoQuest } from './quests';
-import { activityIds, storyObjectives } from './story';
+import { activityIds, isOrderedActivity, storyObjectives } from './story';
 import { getEcho, isEchoId, type EchoId } from './echoes';
-import { clearingRace } from './race';
+import { isRaceTrackId, type RaceTrackId } from './race';
+import { accessories, type AccessoryId } from './fashion';
+import { bolt, villageCats, villagers, type AnimalId, type VillagerId } from './village';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../config/world';
 
 export const SAVE_VERSION = 1;
@@ -16,17 +18,17 @@ const MAX_RACE_TIME_MS = 86_400_000;
 export const STORY_COMPLETE = 'complete';
 
 export type SavedDialogueId =
+  | VillagerId
   | 'stable-keeper-greeting'
   | 'echo-keeper-clue'
   | 'echo-guide-clue'
-  | 'village-baker'
-  | 'trail-guide'
   | 'birthday-finale'
   | 'story-inspect'
   | 'echo-reflection';
 
-const savedDialogueIds: readonly SavedDialogueId[] = ['stable-keeper-greeting', 'echo-keeper-clue', 'echo-guide-clue',
-  'village-baker', 'trail-guide', 'birthday-finale', 'story-inspect', 'echo-reflection'];
+const savedDialogueIds: readonly SavedDialogueId[] = [...villagers.map(({ id }) => id), 'stable-keeper-greeting', 'echo-keeper-clue',
+  'echo-guide-clue', 'birthday-finale', 'story-inspect', 'echo-reflection'];
+const animalIds: readonly AnimalId[] = [...villageCats.map(({ id }) => id), bolt.id];
 
 export interface GameSave {
   version: typeof SAVE_VERSION;
@@ -38,6 +40,7 @@ export interface GameSave {
   horse: { x: number; y: number };
   mounted: boolean;
   outfitId: OutfitId;
+  accessoryId: AccessoryId;
   storyIndex: number;
   /** Objective ID at storyIndex; wins over the index so inserted content cannot shift progress. */
   storyTarget: string;
@@ -51,7 +54,12 @@ export interface GameSave {
   echoQuestIndex: number;
   inventory: Partial<Record<ItemId, number>>;
   decorations: Record<StableDecorationSlotId, DecorationId>;
-  race: { checkpointIndex: number | null; elapsedMs: number; resultText: string };
+  /** Last race result. `checkpointIndex` belonged to the retired overworld race and is always null now. */
+  race: { checkpointIndex: null; elapsedMs: number; resultText: string };
+  /** Best total time per side-view track, in milliseconds. */
+  raceBest: Partial<Record<RaceTrackId, number>>;
+  /** Animals petted at least once; the journal lists their notes. */
+  animals: AnimalId[];
   dialogue: SavedDialogueId | null;
 }
 
@@ -79,6 +87,10 @@ function isProgress(value: unknown, allowed: readonly string[], ordered: boolean
   return value.every((id, index) => typeof id === 'string' && (ordered ? allowed[index] === id : allowed.includes(id)));
 }
 
+function isAnimalId(value: unknown): value is AnimalId {
+  return animalIds.some(id => id === value);
+}
+
 function isEchoList(value: unknown): value is EchoId[] {
   return Array.isArray(value) && value.every(isEchoId) && new Set(value).size === value.length;
 }
@@ -103,20 +115,32 @@ export function parseGameSave(serialized: string | null): GameSave | null {
     const savedIndex = value.storyIndex === undefined ? (value.echoQuestIndex === echoQuest.objectives.length ? storyObjectives.length : 0) : value.storyIndex;
     if (typeof savedIndex !== 'number' || !Number.isInteger(savedIndex) || savedIndex < 0 || savedIndex > storyObjectives.length) return null;
     if (value.storyTarget !== undefined && typeof value.storyTarget !== 'string') return null;
-    const targetIndex = value.storyTarget === STORY_COMPLETE ? -1 : storyObjectives.findIndex(o => o.id === value.storyTarget);
-    const storyIndex = targetIndex >= 0 ? targetIndex : savedIndex;
+    const targetIndex = value.storyTarget === STORY_COMPLETE ? storyObjectives.length : storyObjectives.findIndex(o => o.id === value.storyTarget);
+    let storyIndex = targetIndex >= 0 ? targetIndex : savedIndex;
+
+    // Saves from before explicit Echo state infer restored Echoes from the story position.
+    const restoredEchoes = value.restoredEchoes === undefined
+      ? storyObjectives.slice(0, storyIndex).filter(o => o.type === 'echo').map(o => getEcho(o.target).id)
+      : value.restoredEchoes;
+    if (!isEchoList(restoredEchoes)) return null;
+    // Explicit Echo state wins over the index: when chapters were inserted before the saved objective,
+    // resume right after the last restored Echo instead of skipping the new ones.
+    const missing = storyObjectives.findIndex((o, index) => index < storyIndex && o.type === 'echo' && !restoredEchoes.includes(getEcho(o.target).id));
+    const rewound = missing >= 0;
+    if (rewound) {
+      storyIndex = 0;
+      for (let index = missing - 1; index >= 0; index--) if (storyObjectives[index]!.type === 'echo') { storyIndex = index + 1; break; }
+    }
     const objective = storyObjectives[storyIndex];
 
-    const activityProgress = value.activityProgress === undefined ? [] : value.activityProgress;
-    if (!isProgress(activityProgress, activityIds(objective), objective?.type === 'trail') ||
+    const activityProgress = value.activityProgress === undefined || rewound ? [] : value.activityProgress;
+    if (!isProgress(activityProgress, activityIds(objective), isOrderedActivity(objective)) ||
       (activityProgress.length > 0 && activityProgress.length === activityIds(objective).length)) return null;
 
     // Players from before Meet Your Horse chose their horse in the creator.
     const horseName = value.horseName === undefined ? getHorse(value.horseId).name : value.horseName;
     if (horseName !== null && (typeof horseName !== 'string' || !horseName || cleanHorseName(horseName) !== horseName)) return null;
 
-    const restoredEchoes = value.restoredEchoes === undefined ? [] : value.restoredEchoes;
-    if (!isEchoList(restoredEchoes)) return null;
     let echoProgress: GameSave['echoProgress'] = null;
     if (value.echoProgress !== undefined && value.echoProgress !== null) {
       const record: Record<string, unknown> = isRecord(value.echoProgress) ? value.echoProgress : {};
@@ -139,19 +163,31 @@ export function parseGameSave(serialized: string | null): GameSave | null {
       decorationsBySlot[slot.id] = id;
     }
 
+    // A legacy in-progress checkpoint race simply loads as not racing.
     const checkpointIndex = value.race.checkpointIndex;
     const elapsedMs = value.race.elapsedMs;
     const resultText = value.race.resultText;
-    if ((checkpointIndex !== null && (typeof checkpointIndex !== 'number' ||
-      !Number.isInteger(checkpointIndex) || checkpointIndex < 0 || checkpointIndex >= clearingRace.checkpoints.length)) ||
+    if ((checkpointIndex !== null && (typeof checkpointIndex !== 'number' || !Number.isInteger(checkpointIndex) || checkpointIndex < 0 || checkpointIndex > 20)) ||
       typeof elapsedMs !== 'number' || !Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > MAX_RACE_TIME_MS ||
       typeof resultText !== 'string' || resultText.length > 200) return null;
-    if (checkpointIndex !== null && !value.mounted) return null;
-    if (horseName === null && (value.mounted || checkpointIndex !== null)) return null;
+    if (horseName === null && value.mounted) return null;
 
-    const dialogue = value.dialogue;
+    const raceBest: GameSave['raceBest'] = {};
+    if (value.raceBest !== undefined) {
+      if (!isRecord(value.raceBest)) return null;
+      for (const [id, time] of Object.entries(value.raceBest)) {
+        if (!isRaceTrackId(id) || typeof time !== 'number' || !Number.isFinite(time) || time <= 0 || time > MAX_RACE_TIME_MS) return null;
+        raceBest[id] = time;
+      }
+    }
+    const accessoryId = value.accessoryId ?? 'none';
+    if (!hasId(accessoryId, accessories)) return null;
+    const animals: unknown = value.animals ?? [];
+    if (!Array.isArray(animals) || new Set(animals).size !== animals.length || !animals.every(isAnimalId)) return null;
+
+    const dialogue = rewound ? null : value.dialogue;
     if (dialogue !== null && !isSavedDialogueId(dialogue)) return null;
-    const dialogueTarget = value.dialogueTarget ?? null;
+    const dialogueTarget = rewound ? null : value.dialogueTarget ?? null;
     if (dialogueTarget !== null && (typeof dialogueTarget !== 'string' || !storyObjectives.some(o => o.id === dialogueTarget))) return null;
     const dialogueObjective = dialogueTarget ? storyObjectives.find(o => o.id === dialogueTarget) : storyObjectives[storyIndex - 1];
     if (dialogue === 'story-inspect' && dialogueObjective?.type !== 'inspect') return null;
@@ -172,11 +208,14 @@ export function parseGameSave(serialized: string | null): GameSave | null {
       horse: value.horse,
       mounted: value.mounted,
       outfitId: value.outfitId,
+      accessoryId,
       firstRideIndex: value.firstRideIndex,
       echoQuestIndex: value.echoQuestIndex,
       inventory,
       decorations: decorationsBySlot,
-      race: { checkpointIndex, elapsedMs, resultText },
+      race: { checkpointIndex: null, elapsedMs, resultText },
+      raceBest,
+      animals,
       dialogue,
     };
   } catch {

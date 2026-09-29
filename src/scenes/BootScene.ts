@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
+import { ensureAccessoryTextures } from '../art/Accessories';
+import { ensureBoltTextures } from '../art/BoltSprite';
 import { ensureCatTextures } from '../art/CatSprites';
 import { ensureFigureTextures } from '../art/EchoFigures';
 import { preloadEnvironment } from '../art/Environment';
+import { loadVolume } from '../data/settings';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -16,7 +19,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.sound.volume = loadVolume();
     ensureCatTextures(this);
+    ensureBoltTextures(this);
+    ensureAccessoryTextures(this);
     ensureFigureTextures(this);
     this.scene.start('MainMenu');
   }
