@@ -11,7 +11,7 @@ export const stableKeeperGreeting: DialogueDefinition = {
 export const echoClues: Record<'stable-keeper' | 'trail-guide', DialogueDefinition> = {
   'stable-keeper': {
     speaker: 'Stable Keeper',
-    message: 'I found a line of tiny hoofprints by the old oak. They stop there, but every evening I hear a little bell from that direction.',
+    message: 'Echoes stir when they are ready, not before. Keep an eye on the lights, and on the old oak in the northeast.',
   },
   'trail-guide': {
     speaker: 'Trail Guide',

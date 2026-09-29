@@ -110,20 +110,44 @@ canvas {
 .modal-open .race-countdown { visibility: hidden; }
 .game-dialog .inline-feedback { color: #285a4b; margin: 16px 0 0; white-space: pre-line; }
 
-.quiz-dialog {
-  text-align: center;
-}
-.quiz-question {
-  font-size: 1.2rem;
-  margin-bottom: 20px;
-  color: #fff0d1;
-}
-.quiz-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.quiz-options button {
-  width: 100%;
-  text-align: left;
-}
+/* Echo memories: a low, dark panel over a transparent backdrop so the memory stays visible. */
+.game-dialog.echo-panel { width: min(760px, calc(100vw - 32px)); margin: auto auto 16px; color: var(--cream); background: #120f1ced; border: 2px solid #5de0cc; box-shadow: 0 0 0 2px #2b2140, 0 0 36px #5de0cc33; }
+.game-dialog.echo-panel::backdrop { background: transparent; }
+.game-dialog.echo-panel[open] { animation: echo-arrive 260ms ease-out; }
+.echo-panel header { padding: 8px 16px; background: linear-gradient(90deg, #1f1733, #12262b); border-bottom: 2px solid #5de0cc55; }
+.echo-panel header small { display: none; }
+.echo-panel h1 { font-size: 18px; margin: 0; }
+.echo-panel small { color: #9fe8da; }
+.echo-panel header button { min-height: 32px; padding: 4px 10px; font-size: 14px; }
+.echo-panel .window-content { padding: 12px 16px 14px; }
+/* The memory is the scene; keep world HUD chrome out of it. */
+body:has(dialog.echo-panel[open]) .reward-toast, body:has(dialog.echo-panel[open]) .menu-toggle { visibility: hidden; }
+.echo-panel p { margin: 0 0 10px; }
+.echo-panel .echo-line { font: 17px/1.5 Georgia, serif; }
+.echo-panel .echo-question { font: 19px/1.35 Georgia, serif; margin-bottom: 10px; }
+.echo-panel .echo-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.echo-panel .echo-match { display: grid; gap: 8px; }
+.echo-panel .echo-match > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.echo-panel .echo-options button, .echo-panel .echo-match button { text-align: left; min-height: 40px; padding: 7px 12px; font-size: 15px; line-height: 1.3; }
+.echo-panel .echo-match button { text-align: center; }
+.echo-panel .inline-feedback:empty { display: none; }
+.echo-panel button.tried { opacity: .5; text-decoration: line-through; }
+.echo-panel .echo-match button[aria-pressed=true] { border-color: #5de0cc; background: #2c5d62; }
+.echo-panel .echo-match button.matched { background: #24473f; border-color: #7cc7b8; color: #cfeee6; cursor: default; opacity: 1; }
+.echo-panel .muted { color: #b9a9d0; }
+.echo-panel .inline-feedback { color: #ffd98a; font-style: italic; margin: 10px 0 0; }
+.echo-panel .echo-reward { color: #bff8ec; }
+@keyframes echo-arrive { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* Meet Your Horse */
+.horse-choice .horse-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.horse-choice .horse-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px; text-align: center; color: var(--ink); background: #e6d8b8; border-color: #b39a6e; }
+.horse-choice .horse-card:hover { background: #efe3c6; }
+.horse-choice .horse-card[aria-pressed=true] { background: #d6ead8; border: 3px solid #3f8f7c; }
+.horse-choice .horse-card img { width: 144px; height: 120px; image-rendering: pixelated; }
+.horse-choice .horse-card strong { font: 20px/1.2 Georgia, serif; }
+.horse-choice .horse-card small { color: var(--muted); }
+.horse-choice .horse-card span { font-size: 14px; line-height: 1.35; }
+.horse-choice .horse-name { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font-weight: bold; }
+.horse-choice input { font: 18px Georgia, serif; padding: 8px 10px; width: 220px; border: 2px solid #b39a6e; background: #fffaf0; color: var(--ink); }
+.game-dialog .echo-list li p { margin: 4px 0 0; }

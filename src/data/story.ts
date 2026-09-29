@@ -1,68 +1,73 @@
 import type { ItemId } from './items';
 import { birthdayGift } from './birthdayGift';
-import { countrysideTrails, type JourneyPoint } from './journeys';
+import { getEcho, type EchoId } from './echoes';
+
+export interface TrailPoint {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+}
 
 export interface StoryObjective {
-  type: 'talk' | 'ride' | 'inspect' | 'cat' | 'equip' | 'decorate' | 'race' | 'mount' | 'shop' | 'trail' | 'search' | 'pattern' | 'care' | 'quiz';
+  type: 'talk' | 'ride' | 'inspect' | 'cat' | 'equip' | 'decorate' | 'race' | 'mount' | 'shop' | 'trail' | 'care' | 'choose-horse' | 'echo';
   target: string;
   description: string;
   x?: number;
   y?: number;
   payoff?: string;
   reward?: ItemId;
-  points?: JourneyPoint[];
-  hint?: string;
-  quizQuestion?: string;
-  quizOptions?: { id: string; text: string; correct?: boolean; response?: string }[];
+  /** `trail` only: ordered mounted checkpoints. */
+  points?: TrailPoint[];
+  /** `trail` only: color of the drifting lights. */
+  glow?: number;
 }
 
+export const careActions = ['brush', 'water', 'treat'] as const;
 
-// Each leg ends at a small discovery so long rides have natural places to dismount.
-function journey(target: string, id: string): StoryObjective[] {
-  const route = countrysideTrails.find(trail => trail.id === id);
-  if (!route) throw new Error(`Unknown countryside trail: ${id}`);
-  const objectives: StoryObjective[] = [];
-  for (let start = 0; start < route.points.length; start += 9) {
-    const points = route.points.slice(start, start + 9);
-    const first = points[0]!;
-    const last = points[points.length - 1]!;
-    objectives.push({ type: 'trail', target: start === 0 ? target : `${target}-leg-${start}`, description: `Ride ${route.name.toLowerCase()} — follow the marked countryside path`, x: first.x, y: first.y, points });
-    if (start + 9 < route.points.length) objectives.push({ type: 'inspect', target: `${target}-rest-${start}`, x: last.x + 65, y: last.y + 45, description: `Dismount at the ${route.name.toLowerCase()} waystone and inspect its carving`, payoff: route.theme === 'echo' ? 'A little horse is carved beside a cat. Both are following a ribbon toward the oak.' : route.theme === 'ridge' ? 'A weather-worn horseshoe points to the next overlook. The countryside opens wide below.' : route.theme === 'river' ? 'Tiny hoofprints cross the stone beside a carved kingfisher. Someone else loved stopping here.' : route.theme === 'woodland' ? 'A fern curls around a carved saddle. Between the trees, another path catches the light.' : route.theme === 'orchard' ? 'A carved apple and a tiny sleeping cat. This seems like a sensible place for a picnic.' : 'Wildflowers wind around a little carved horse. The path continues through the grass.' });
-  }
-  return objectives;
+function echoObjective(id: EchoId, description: string): StoryObjective {
+  const { site } = getEcho(id);
+  return { type: 'echo', target: id, x: site.x, y: site.y, description };
 }
 
+// The final birthday reveal is reserved for Echo VI; `birthdayFinale` stays in birthdayGift.ts for it.
 export const storyChapters: { name: string; objectives: StoryObjective[]; payoff: string; reward?: ItemId }[] = [
   {
-    name: 'Welcome to Evervale',
+    name: 'Welcome to Sunmeadow',
     objectives: [
-      { type: 'talk', target: 'stable-keeper', x: 800, y: 550, description: 'Meet the Stable Keeper beside Sunmeadow Stable', payoff: `Welcome, ${birthdayGift.recipient}. Your horse has already inspected the place. Apparently it will do.` },
-      { type: 'inspect', target: 'stable-nameplate', x: 855, y: 585, description: 'Dismount and inspect the nameplate beside the stable with E', payoff: 'A clean nameplate, a warm stall, and room for your things. Open H whenever you want to check on your chosen horse.' },
-      { type: 'mount', target: 'chosen-horse', description: 'Walk beside your chosen horse and press E to mount' },
-      { type: 'ride', target: 'paddock-turn', x: 980, y: 410, description: 'Ride northeast to the paddock turn', payoff: 'An easy turn, a flick of an ear. You are getting to know each other.' },
+      { type: 'talk', target: 'stable-keeper', x: 800, y: 550, description: 'Say hello to the Stable Keeper outside Sunmeadow Stable', payoff: `Welcome to Sunmeadow, ${birthdayGift.recipient}! WASD to walk, E to talk or take a closer look. Have a wander. The stable cat will find you first.` },
+      { type: 'inspect', target: 'stable-nameplate', x: 855, y: 585, description: 'Take a look at the nameplate beside the stable door', payoff: `SUNMEADOW STABLE, and underneath, freshly painted: “${birthdayGift.recipient}”. Someone was expecting you.` },
+      { type: 'cat', target: 'nomi', x: 740, y: 530, description: 'Pet Nomi, the stable cat. She likes company, within reason', payoff: 'Nomi sits on your foot. You have been adopted. Terms and conditions apply.' },
     ],
-    payoff: 'A horse, a stable, and a whole day with no hurry.',
+    payoff: 'A stable, a cat, and a keeper who already knows your name. The paddock horses are watching.',
   },
   {
-    name: 'A Stable of Your Own',
+    name: 'Meet Your Horse',
+    objectives: [
+      { type: 'choose-horse', target: 'paddock', x: 775, y: 605, description: 'Meet the three horses by the paddock fence south of the stable and choose your companion' },
+      { type: 'mount', target: 'chosen-horse', description: 'Stand beside your new horse and press E to mount' },
+      { type: 'ride', target: 'lane-bend', x: 1160, y: 310, description: 'Ride up the lane to the northeast bend', payoff: 'An easy canter, a flick of an ear. You are getting to know each other.' },
+      { type: 'ride', target: 'stable-home', x: 825, y: 600, description: 'Ride back down to the stable' },
+      { type: 'care', target: 'first-horse-care', description: 'Dismount beside your horse; H → Your horse to brush, water and give a treat', payoff: 'Brushed, watered, snacked. Your horse now considers you acceptable staff.' },
+    ],
+    payoff: 'You have a horse. More importantly, your horse has you.',
+  },
+  {
+    name: 'Make It Yours',
     reward: 'teal-posy',
     objectives: [
-      { type: 'ride', target: 'stable-home', x: 825, y: 600, description: 'Ride southwest back to your stable' },
-      { type: 'equip', target: 'any-outfit', description: 'Open the wardrobe with O and choose an outfit' },
-      { type: 'decorate', target: 'any-slot', description: 'Open H and choose a decoration for one stable slot' },
-      { type: 'care', target: 'first-horse-care', description: 'Dismount beside your horse; H → Your horse to brush, water, and offer a treat', payoff: 'A brushed coat, fresh water, a snack. Ready for a proper outing.' },
-      { type: 'cat', target: 'stable-cat', x: 740, y: 530, description: 'Dismount, then pet the cream tabby west of the stable with E', payoff: 'The tabby examines your decorating work, then sits down. Approval, probably.' },
+      { type: 'equip', target: 'any-outfit', description: 'Open the wardrobe with O and pick an outfit for today', payoff: 'Excellent choice. Your horse agrees, which is rare.' },
+      { type: 'decorate', target: 'any-slot', description: 'Open H → Stable and change one decoration', payoff: 'Much better. The stable finally looks lived in.' },
     ],
-    payoff: 'A teal flower pot is yours — H → Stable to place it. The cat has claimed joint ownership.',
+    payoff: 'A teal flower pot is yours. H → Stable to place it. Nomi has claimed joint ownership.',
   },
   {
     name: 'The First Ride',
     objectives: [
-      { type: 'mount', target: 'chosen-horse', description: 'Mount up for the village ride' },
-      { type: 'ride', target: 'lane-flowers', x: 565, y: 480, description: 'Follow the lane northwest to the flowers' },
+      { type: 'mount', target: 'chosen-horse', description: 'Mount up for a ride to the village' },
+      { type: 'ride', target: 'lane-flowers', x: 565, y: 480, description: 'Follow the lane northwest toward the flowers' },
       { type: 'inspect', target: 'roadside-posy', x: 525, y: 445, description: 'Dismount and inspect the little blue-green posy beside the lane', payoff: 'Someone tied the stems with teal thread. A nice detail on an ordinary country road.' },
-      ...journey('orchard-country-ride', 'orchard-outing'),
-      { type: 'ride', target: 'village-arrival', x: 400, y: 350, description: 'Continue northwest into the village', payoff: 'Warm bread, birdsong, and a cat pretending not to watch you arrive.' },
+      { type: 'ride', target: 'village-arrival', x: 400, y: 350, description: 'Continue northwest into the village', payoff: 'Warm bread, birdsong, and a cat somewhere being extremely loud about it.' },
     ],
     payoff: 'The village is yours to explore. The baker has something set aside.',
   },
@@ -71,7 +76,7 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
     objectives: [
       { type: 'talk', target: 'village-baker', x: 360, y: 330, description: 'Dismount and greet the baker outside the bakery', payoff: 'A welcome gift? Of course. Making you pay on your first day would be absolutely horrid, darling.' },
       { type: 'shop', target: 'bakery-gift', description: 'Open the bakery counter and collect your welcome gift' },
-      { type: 'cat', target: 'calico-cat', x: 450, y: 410, description: 'Dismount, then pet the calico southeast of the bakery', payoff: 'The calico is very interested in your parcel. Fashion critic, or just a fan of string?' },
+      { type: 'cat', target: 'miki', x: 450, y: 410, description: 'Pet Miki outside the bakery. You will hear him before you see him', payoff: 'Miki flops over and purrs like a small tractor. A loud, fluffy, very round tractor.' },
       { type: 'inspect', target: 'race-notice', x: 480, y: 465, description: 'Read the riding notice southeast of the village', payoff: 'Clearing Canter: follow the gates, take your time. Everyone who finishes gets a treat. Start east of Sunmeadow Stable.' },
     ],
     payoff: 'A small gift and an invitation to ride. A good village day.',
@@ -81,112 +86,66 @@ export const storyChapters: { name: string; objectives: StoryObjective[]; payoff
     objectives: [
       { type: 'mount', target: 'chosen-horse', description: 'Mount your horse for Clearing Canter' },
       { type: 'ride', target: 'race-arrival', x: 975, y: 650, description: 'Ride southeast to the race gate below the stable' },
-      { type: 'race', target: 'clearing-canter', description: 'Press R at the gate and finish Clearing Canter — any time counts' },
-      { type: 'inspect', target: 'finish-ribbon', x: 1030, y: 700, description: 'Dismount and inspect the ribbon just southeast of the race gate', payoff: 'Your horse noses the ribbon. For a moment, its teal thread shines without catching the sun.' },
+      { type: 'race', target: 'clearing-canter', description: 'Press R at the gate and finish Clearing Canter. Any time counts' },
+      { type: 'inspect', target: 'finish-ribbon', x: 1030, y: 700, description: 'Dismount and inspect the ribbon just southeast of the race gate', payoff: 'Your horse noses the ribbon. Its teal thread starts to glow on its own. East of the gate, something answers.' },
     ],
     payoff: 'You finished together. And something else seems to have noticed.',
   },
   {
     name: 'Echo I — A Spark in the Crowd',
     objectives: [
-      { type: 'inspect', target: 'glowing-hoofprint', x: 1130, y: 660, description: 'Dismount and inspect the glowing hoofprint east of the race gate', payoff: 'A hoofprint full of light. Your horse is curious, not afraid. Another glimmer waits farther south.' },
-      ...journey('southern-glimmer', 'willow-water'),
+      { type: 'inspect', target: 'glowing-hoofprint', x: 1130, y: 660, description: 'Dismount and inspect the glowing hoofprint east of the race gate', payoff: 'A hoofprint full of light, humming like a distant bass line. Violet sparks drift away to the southeast.' },
       {
-        type: 'quiz',
-        target: 'echo-1',
-        x: 18000,
-        y: 40000,
-        description: 'Dismount and inspect the glowing memory fragment',
-        quizQuestion: 'Who was there that night?',
-        quizOptions: [
-          { id: 'opt1', text: 'Only Hana and Tian', response: 'That is one version of events.' },
-          { id: 'opt2', text: 'Maj, Tilen and friends', correct: true, response: 'Correct.' },
-          { id: 'opt3', text: 'Three suspicious cats in a trenchcoat', response: 'Suspicious answer. The Echo seems unconvinced.' }
+        type: 'trail', target: 'violet-sparks', glow: 0xc07bff, description: 'Ride after the violet sparks toward the southeast meadow',
+        points: [
+          { id: 'south-fence', name: 'Sparks past the south fence', x: 1290, y: 860 },
+          { id: 'flower-dip', name: 'Sparks over the flower meadow', x: 1440, y: 930 },
+          { id: 'dusk-edge', name: 'Where the light turns violet', x: 1545, y: 960 },
         ],
-        payoff: 'A stylized pixel-art club. Dark environment, teal and purple lighting. Silhouettes and light pulses.'
       },
-      {
-        type: 'quiz',
-        target: 'echo-1-part2',
-        x: 20000,
-        y: 40000,
-        description: 'Follow the spark and inspect the next fragment',
-        quizQuestion: 'What happened during the world\'s most questionable first impression?',
-        quizOptions: [
-          { id: 'opt1', text: 'A completely normal handshake', response: 'The Echo shakes its head.' },
-          { id: 'opt2', text: 'Hana accidentally touched Tian\'s left cheek with a lit cigarette', correct: true, response: 'Some people bring flowers. Apparently we went with mild facial burns.' },
-          { id: 'opt3', text: 'A dance battle', response: 'If only.' }
-        ],
-        payoff: 'Some people bring flowers. Apparently we went with mild facial burns. At this stage, it feels like a strangely specific Echo.'
-      }
+      echoObjective('spark', 'Dismount and touch the pulsing light among the dusk stones'),
     ],
-    payoff: 'The fragment settles into a small warm spark.'
+    payoff: 'The first Echo is restored. It felt less like ancient magic and more like a night out.',
   },
   {
     name: 'Echo II — Five Minutes Until Break',
     objectives: [
-      ...journey('fern-hollow-ride', 'fern-hollows'),
+      { type: 'talk', target: 'stable-keeper', x: 800, y: 550, description: 'Tell the Stable Keeper about the Echo', payoff: 'Echoes? Old Evervale magic. They keep what people care about most. A club and a cigarette, though? Strange taste. Another glimmer drifted west, toward the pond.' },
       {
-        type: 'quiz',
-        target: 'echo-2',
-        x: 33000,
-        y: 44000,
-        description: 'Dismount to find the second Echo fragment in the eastern meadow',
-        quizQuestion: 'What were we waiting for more than anything?',
-        quizOptions: [
-          { id: 'opt1', text: 'The shift to end', response: 'True, but not the whole truth.' },
-          { id: 'opt2', text: 'Going to the sea together', correct: true, response: 'Yes. They were barely able to wait.' },
-          { id: 'opt3', text: 'Lunch break', response: 'Food is good, but no.' }
+        type: 'trail', target: 'golden-glints', glow: 0xffc861, description: 'Ride after the golden glints toward the pond',
+        points: [
+          { id: 'lane-glint', name: 'Golden glints up the lane', x: 620, y: 540 },
+          { id: 'village-bend', name: 'Glints past the village bend', x: 430, y: 420 },
+          { id: 'pond-meadow', name: 'The warm light above the pond', x: 330, y: 470 },
         ],
-        payoff: 'A split memory: the GEN-I office on one side, the warehouse on the other. Phones connecting them.'
-      }
+      },
+      echoObjective('break', 'Dismount and listen to the glowing string telephone north of the pond'),
     ],
-    payoff: 'They wanted to talk every day even while working.'
+    payoff: 'Two phones, one call a day. The Echoes are getting very specific.',
   },
   {
     name: 'Echo III — Half a Bed',
     objectives: [
-      ...journey('eastern-bend', 'breeze-memory'),
+      { type: 'inspect', target: 'pond-seashell', x: 315, y: 650, description: 'Dismount and inspect the glint at the edge of the pond', payoff: 'A seashell. In a pond. Nowhere near the sea. It smells faintly of salt and sunscreen. Blue lights drift north.' },
       {
-        type: 'quiz',
-        target: 'echo-3',
-        x: 58000,
-        y: 33000,
-        description: 'Dismount to find the third fragment at the silver reed shore',
-        quizQuestion: 'What game were we playing in the camper van?',
-        quizOptions: [
-          { id: 'opt1', text: 'Minecraft', response: 'A good guess, but no.' },
-          { id: 'opt2', text: 'Brawl Stars', correct: true, response: 'Exactly.' },
-          { id: 'opt3', text: 'Fortnite', response: 'The camper van didn\'t have the setup for that.' }
+        type: 'trail', target: 'blue-lights', glow: 0x7fb8ff, description: 'Ride after the blue lights to the north',
+        points: [
+          { id: 'meadow-flowers', name: 'Blue lights by the meadow flowers', x: 430, y: 470 },
+          { id: 'village-lane', name: 'Blue lights up the village lane', x: 540, y: 300 },
+          { id: 'first-stars', name: 'Under the first stars', x: 770, y: 215 },
         ],
-        payoff: 'A cozy evening playing Brawl Stars together.'
       },
-      {
-        type: 'quiz',
-        target: 'echo-3-part2',
-        x: 58200,
-        y: 33200,
-        description: 'Inspect the final piece of the memory',
-        quizQuestion: 'What did we spill on the bed?',
-        quizOptions: [
-          { id: 'opt1', text: 'Coffee', response: 'Fortunately not.' },
-          { id: 'opt2', text: 'Water', correct: true, response: 'A camper van. One wet bed. Half a mattress was apparently enough.' },
-          { id: 'opt3', text: 'Juice', response: 'Sticky, but no.' }
-        ],
-        payoff: 'Hana and Tian squeezed onto the remaining dry side.'
-      }
+      echoObjective('half-bed', 'Dismount and touch the light on the starlit knoll'),
     ],
-    payoff: 'A strange feeling... these memories seem connected to Hana and Tian.'
+    payoff: 'Three Echoes. Three of your memories. Evervale has some explaining to do.',
   },
   {
-    name: 'A Memory Made for You',
-    reward: 'echo-tack',
+    name: 'More Echoes Are Stirring',
     objectives: [
-      { type: 'inspect', target: 'oak-ribbon', x: 61065, y: 44045, description: 'Dismount and inspect the ribbon on the eastern side of the old oak', payoff: `A tiny tag reads “For ${birthdayGift.recipient}.” The whole trail was an invitation.` },
-      { type: 'inspect', target: 'birthday-finale', x: 61000, y: 44000, description: 'Open the birthday Echo beneath the old oak' },
+      { type: 'inspect', target: 'oak-stirring', x: 1480, y: 300, description: 'Follow the drifting lights to the old oak and dismount beneath it', payoff: 'The old oak hums. Somewhere inside it, more Echoes are still asleep. They are starting to stir.' },
     ],
-    payoff: 'Happy birthday. Your gifts are ready, your horse is waiting, and Evervale is yours to wander.',
-  }
+    payoff: 'More Echoes are stirring… For now, Evervale is yours to roam.',
+  },
 ];
 
 export const storyObjectives = storyChapters.flatMap((chapter) => chapter.objectives.map((objective, index) => ({
@@ -196,5 +155,13 @@ export const storyObjectives = storyChapters.flatMap((chapter) => chapter.object
   chapterEnd: index === chapter.objectives.length - 1,
 })));
 
+export type StoryStep = (typeof storyObjectives)[number];
+
 export const echoStartIndex = storyObjectives.findIndex(o => o.chapter === 'Echo I — A Spark in the Crowd');
-export const finalRideStartIndex = storyObjectives.findIndex(o => o.chapter === 'Echo III — Half a Bed');
+
+/** IDs a partially complete activity may record, in completion order for ordered activities. */
+export function activityIds(objective: StoryObjective | undefined): readonly string[] {
+  if (objective?.type === 'trail') return objective.points?.map(point => point.id) ?? [];
+  if (objective?.type === 'care') return careActions;
+  return [];
+}

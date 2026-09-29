@@ -1,18 +1,22 @@
-# Complete the main birthday adventure
+# Batch 3A: campaign backbone and Echoes I–III
 
 agent_tier: orchestrator
 context_budget: medium
 
-Status: implementation complete; final browser and real-time validation in progress. This is the user's directly requested task, not an autonomous backlog selection.
+Status: complete and validated; the user played the build and reported it working. This was a direct user request, not a backlog selection. Do not advance the backlog until the user accepts it.
 
 ## Goal
-Create a cohesive 45–75 minute casual birthday experience with 8–12 main quests. The user explicitly authorized expanding playable space and activities. Riding, exploration, racing, customization, decoration, cats, collecting and discovery should outweigh reading. Preserve the warm configurable birthday ending and post-ending free roam.
+Restore a compiling build on the current 1800×1100 map. Implement the opening quests (Welcome to Sunmeadow, Meet Your Horse, Make It Yours), a reusable data-driven Echo framework and Echoes I–III, the five real cats, and explicit Echo save state. After Echo III, show a temporary "more Echoes are stirring" beat and return to free roam. The birthday ending stays reserved for Echo VI.
 
 ## Allowed files
-Task-relevant content, world configuration, scenery, gameplay integration and save compatibility in src; focused verification in scripts and package scripts; docs/CURRENT_STATE.md and handoffs/latest.md. Reuse existing art and systems. No dependencies, combat, punishing timers, forced waits, unrelated economy or long exposition.
+Task-relevant content, scenes, UI, art modules, entities and save compatibility in src. Verification scripts and the package test script. Docs: CURRENT_STATE, QUEST_DESIGN, PERSONALIZATION, DATA_SCHEMAS, handoff. No dependencies and no world expansion.
 
 ## Acceptance
-Clear beginning, middle and finale; forgiving country race; wardrobe and horse selection; stable decoration and cats; varied Echo exploration and subtle personal signs; birthday clothing, fitted tack and decoration rewards; saved progress and partial activities resume correctly; free roam afterward. Maintain compatibility with existing saves, with only necessary validated additive fields.
+- Opening quests work; horse choice is in-world with Sky pre-filled and renameable; the creator only creates Hana.
+- Echoes I–III are playable, with setup, steps, affectionate retryable wrong answers, completion, keepsake and return.
+- Leaving or reloading mid-Echo resumes at the next step; restored Echoes persist explicitly.
+- The memories become suspiciously personal without a full reveal.
+- There are clear extension points for Echoes IV–VI.
 
 ## Validation
-Build, typecheck, content/save tests, complete fresh-save browser progression, rewards, race, wardrobe, horse selection, decoration, Echo sequence, finale, reloads and free roam. Measure a separate real-time keyboard traversal; distinguish it from accelerated functional checks and casual pacing estimates. Fix blockers. Update state/handoff, commit only task-related changes and push on success. Do not advance the backlog.
+Typecheck, build, `npm test`, and the headless-Chrome fresh-save playthrough through Echo III with a browser error check. Commit locally only; the user asked for no push.

@@ -1,17 +1,25 @@
 # Handoff
 
-## Current request and remaining decision
-The user repeated the birthday-content request, including a 45–75 minute main experience. The repository already contains ten chapters / 38 objectives and all requested activity categories. **The duration requirement remains unmet/unvalidated.** An async clarification asks whether to retain and polish the compact adventure or expand playable space/activities. No answer has arrived. Do not call the full request complete or pad it with dialogue, forced waits, or repeated laps. No backlog advancement is authorized; CURRENT_TASK remains the previously completed UI task.
+## Batch 3A: campaign backbone and Echoes I–III
 
-## This pass
-Inspected the requested design documents, existing content, interaction flow, persistence and browser harness. Fixed two integration problems:
-- At the cream tabby’s actual marker (740, 530), the keeper’s talk radius intercepted E. Nearby cats now precede NPC interaction, while close-range mounting and story inspections retain priority. Prompts follow the same order.
-- Story NPCs displayed generic conversation text; authored quest lines appeared only as transient feedback and vanished on reload. Conversations now resolve their authored payoff from the previous completed talk objective, both initially and after reload, using existing dialogue IDs and save fields.
+The previous HEAD did not compile: `src/data/journeys.ts`, `src/art/Countryside.ts` and the matching save/world changes were never committed, and they are not recoverable from git. The user chose to stay on the 1800×1100 map, rebuild the campaign on it, and expand the world only after the personalized campaign and minigames are done.
 
-The regression harness now targets the real cat coordinates, asserts pet prompts and authored NPC dialogue through reloads, and waits for actual race-countdown completion instead of assuming a wall-clock delay. An initial run exposed the generic greeting; another exposed the fragile countdown wait.
+Implemented:
+- Opening quests: Welcome to Sunmeadow, Meet Your Horse (in-world three-card choice, Quarter Horse first, "Sky" pre-filled and renameable) and Make It Yours. The creator only creates Hana.
+- A data-driven Echo framework (`echoes.ts` → `EchoScene` + `EchoPanel` + `EchoStages`/`EchoSites`) and Echoes I–III as specified.
+- A temporary "More Echoes Are Stirring" beat at the oak, then free roam.
+- Five real cats with light behaviors.
+- Explicit `restoredEchoes`/`echoProgress` save state.
 
-## Durable content
-Story content is in src/data/story.ts; configurable personal birthday text/signature remain in src/data/birthdayGift.ts. Rewards include Berry, a teal flower pot, race apples, three Echo fragments, birthday teal clothing, fitted bridle ribbon and an Echo lantern. Cats, customization and racing remain available in free roam. No new systems, dependencies, content objectives or save schema changes in this pass.
+The oak birthday finale is intentionally unreachable and reserved for Echo VI.
 
-## Validation
-Build, typecheck and the expanded Chromium regression passed (60 FPS, no browser errors). All 38 objectives, cat marker prompts, NPC/fragment/finale dialogue reloads, rewards, customization, race and post-ending free roam passed. No npm test or lint script exists. Browser traversal uses accelerated travel and actual interaction/menu input; the final repeat race uses keyboard riding. This is functional verification, not a timed casual playthrough. Existing Vite bundle-size advisory remains.
+## Next
+
+Echo IV–VI follow immediately. Motifs are in `docs/PERSONALIZATION.md` and `plannedEchoes`; the add-an-Echo recipe is in `docs/QUEST_DESIGN.md`. Each new setting needs an `EchoStages` builder and an `EchoSites` look. `Record<EchoSetting, …>` makes a missing one a type error. Insert the new chapters before "More Echoes Are Stirring", or move that beat later. `storyTarget` keeps saves stable across inserted chapters. Echo VI then hands off to the finale using `birthdayFinale` and the `echo-tack` rewards.
+
+## Known limits
+
+- The world is compact, and casual playtime is unmeasured and well short of 60–90 minutes.
+- Some older inspect props (roadside posy, race notice) sit under tree canopies; markers still show them.
+- Echo art is procedural and deliberately simple. Generated textures can be replaced by PNGs under the same keys.
+- The browser harness needs local port binding (outside the Claude sandbox) and a Chrome binary via `CHROMIUM`.

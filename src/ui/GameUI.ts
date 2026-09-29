@@ -115,29 +115,6 @@ export class GameUI {
   }
 
 
-  showQuiz(title: string, question: string, options: {id: string; text: string; correct?: boolean; response?: string}[], onAnswer: (correct: boolean, response: string) => void): void {
-    let html = `<p class="quiz-question">${escapeHTML(question)}</p><div class="quiz-options">`;
-    for (const opt of options) {
-      html += button(`quiz-opt-${opt.id}`, escapeHTML(opt.text));
-    }
-    html += '</div>';
-
-    this.show(title, html, undefined, 'quiz-dialog');
-
-    for (const opt of options) {
-      this.bind(`quiz-opt-${opt.id}`, () => {
-        const isCorrect = !!opt.correct;
-        const responseText = opt.response || (isCorrect ? 'Correct.' : 'Incorrect.');
-        if (!isCorrect) {
-          this.notify(responseText);
-        } else {
-          this.close();
-          onAnswer(true, responseText);
-        }
-      });
-    }
-  }
-
   private handleShortcut = (event: KeyboardEvent): void => {
     if (this.isOpen || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
     const pages: Record<string, MenuPage> = { Escape: 'pause', i: 'inventory', o: 'wardrobe', h: 'horse', j: 'journal' };

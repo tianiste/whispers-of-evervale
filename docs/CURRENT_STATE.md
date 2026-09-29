@@ -2,29 +2,43 @@
 
 ## Milestone and runtime
 
-Whispers of Evervale is a desktop birthday adventure built with Phaser 3.90, strict TypeScript and Vite. Boot leads through MainMenu and a rider/first-horse creator into a 960×540 FIT canvas. The user explicitly authorized expanding playable space and activities to meet the original 45–75 minute request; the previous compact-world constraint no longer applies to this task. No backlog advancement is authorized.
+Whispers of Evervale is a desktop birthday adventure built with Phaser 3.90, strict TypeScript and Vite. Boot generates cat and Echo character textures, then leads through MainMenu and a creator that only creates Hana (one of three looks) into a 960×540 FIT canvas. The world is the original 1800×1100 Sunmeadow map. An earlier 64000×48000 countryside expansion was never committed and is not in the repository; the user chose to keep the current map until the personalized campaign and minigames are complete.
 
-Sunmeadow's original 1800×1100 home area remains at its original coordinates inside a 64000×48000 countryside. Eleven authored routes connect orchards, wildflower meadows, willow waterways, fern hollows, picnic lookouts, woodland, ridges and the final Echo oak. Main travel plus the race amounts to roughly 760,700 pixels, or 38.4 minutes at full riding speed before interactions/navigation. This is a design budget, not a measured casual playtime claim. Real-time keyboard playthrough validation is in progress.
+## Campaign
 
-## Main adventure and activities
+`src/data/story.ts` holds ten chapters and 32 sequential objectives:
 
-`src/data/story.ts` owns ten chapters and 94 sequential sub-objectives; `src/data/journeys.ts` owns the shared route geometry and landscape themes. The beginning introduces the stable, horse selection, riding, wardrobe, decorations, horse care and village. 
-The Echo mystery is currently being reworked to include three personalized Echo memories (HardBeats, GEN-I, Banjole) along with an interactive quiz/reconstruction UI. The final route leads to the configured birthday message beneath the eastern oak, then free roam.
+1. Welcome to Sunmeadow: Stable Keeper, stable nameplate, Nomi.
+2. Meet Your Horse: three horse cards at the paddock south of the stable. The brown Quarter Horse is first with "Sky" pre-filled; the name can be changed (max 16 characters). Then mount, ride out and back, and horse care (H → Your horse: brush, water, treat).
+3. Make It Yours: outfit and one stable decoration; rewards the teal flower pot.
+4. The First Ride, 5. Village Day (baker gift, Miki, race notice), 6. First Race (Clearing Canter, three gates, no time limit).
+7–9. Echo I–III: each begins with a short mounted trail of coloured lights (violet, golden, blue) to a distinct site with its own props and local screen lighting: dusk stones in the southeast, a string telephone north of the pond, a starlit knoll in the north.
+10. More Echoes Are Stirring: the old oak hums; the story then returns to free roam, with the HUD and journal showing "Echoes restored 3 of 6".
 
-Trail legs have ordered, generous checkpoints and no timers. Search items can be inspected in any order; patterns show the intended sequence and mistakes only give a hint. All partial activity progress saves. Horse care uses H → Your horse to brush, water and offer a treat while dismounted beside the horse. It costs no inventory items. Short discoveries provide natural stopping places between riding legs; there are no mandatory waits, combat, losing states or required repeated laps.
+The birthday finale is not reachable. `birthdayFinale` (in `birthdayGift.ts`), the oak and the `echo-tack`-gated birthday outfit, ribbon and Echo lantern are reserved for Echo VI.
 
-Meadow and Sky outfits are available initially. The baker gives Berry free, without duplicate gifts. The stable chapter awards a teal flower pot. Clearing Canter awards a Horse Apple and now follows thirty ordered gates through the countryside back to Sunmeadow. It retains briefing, countdown, directional guidance, elapsed time, results, cancellation and repeat play, with no time limit. Three Echo fragments remain keepsakes. The finale unlocks Birthday teal clothing, automatically fits a teal bridle ribbon and unlocks the Echo lantern for stable slots. H → Your horse offers a return to Sunmeadow after the ending. Wardrobe, decorating, cats and racing remain available afterward.
+## Echo framework
 
-Six cats include three optional countryside encounters. Maple, the brown Quarter Horse, remains a starter choice alongside Mustang and Friesian options. Personal details stay restrained: teal, cats, countryside, a Quarter Horse sketch, one village joke, a hidden initial and the warm finale. `src/data/birthdayGift.ts` retains the user's configured personal message and signature. No currency economy, new horse unlock or general tack collection system was added.
+`src/data/echoes.ts` owns Echo content: setting, site, two or three intro lines, steps (`quiz` with one correct option and per-option funny responses, or `match` pairs with miss lines), completion lines, Hana's reflection and a keepsake reward. `plannedEchoes` lists IV–VI so the journal counts six. `EchoScene` launches over the paused World after a flash and fade. It shows the setup, runs the steps through `src/ui/EchoPanel.ts` (a low dialog over a transparent backdrop), plays stage cues from `src/art/EchoStages.ts`, then shows completion, keepsake and restored count, and returns. Wrong answers keep the question open, strike through the option and show feedback; nothing resets. Escape leaves early; solved steps persist and the Echo resumes at the next step. Back in the world, Hana's reflection plays, the site orb dims, and the keepsake unlocks a matching stable decoration (glow sticks, phone charm, Banjole seashell).
 
-## Presentation and controls
+Stages are drawn procedurally with generated pixel figures for Hana, Tian, Maj, Tilen and friends (`src/art/EchoFigures.ts`), with heights following the character references:
+- Club: beams, a bass-pulse camera bump (off under reduced motion), a quiet synthesized kick, and a cigarette-ember cue ending on Tian's left cheek.
+- Split office/warehouse: halves light up as pairs match, then phones connect and a shared thought bubble of the sea appears.
+- Camper van: generic phone-game flashes, a spilled glass, water spreading over half the bed, and both squeezed onto the dry side.
 
-Existing pixel art is reused with bounded scenery streaming: nine nearby 768px chunks, authored paths, flower patches, tree groves, orchard fruit, paddock rails, ridge stones, pools, bridges and route signs. The final region gains teal lighting and stronger Echo markers. Four original home collision obstacles remain; extended scenery is decorative. The renderer does not allocate a world-sized texture. Original ambience and quiet feedback tones remain; no new audio dependency or finale music asset was introduced.
+## Cats and world
 
-WASD/arrows move; E interacts or mounts/dismounts; R at the mounted race gate opens its briefing. I opens the satchel, O the wardrobe, H horse/stable, J the journal, and Escape pause. Native dialogs pause gameplay, trap focus, support Escape and show feedback. Context prompts match interaction priority: current discoveries, close mounting, cats, NPCs. Walking reaches 205px/s and riding 330px/s, retaining acceleration, braking, dust and camera look-ahead.
+Five real cats replace the generic ones. Positions are in `src/data/village.ts`; behaviors in `src/entities/CatEntity.ts`:
+- Nomi follows you around the stable and relocates when pestered.
+- Miki is loud.
+- Viski turns around at random.
+- Maks runs off twice before allowing a pat.
+- Maco reappears in odd spots.
 
-## Persistence and validation
+Cat textures are generated under `cat-<id>`; a PNG loaded under the same key replaces them. The two unchosen horses stay in the paddock as scenery.
 
-Save version 1 remains. Additive `storyTarget` (chapter-qualified objective ID), `activityProgress`, and `dialogueTarget` are validated. Stable IDs prevent inserted content or repeated mount targets from reinterpreting saved progress. Original 38-step saves migrate through an explicit lookup; completed gifts remain complete, and open discovery dialogue keeps its original text. An old active three-gate race ends safely rather than resuming at an unrelated gate in the new course.
+## Controls, persistence and validation
 
-Build, typecheck, independent content/migration tests and isolated scenery-streaming checks pass. `npm test` runs the content/save checks. `scripts/verify-ui.mjs` checks the story, activities, rewards, windows, race, reloads and free roam; its `--realtime` mode starts a fresh save and drives the story through keyboard travel. Expanded browser validation is in progress. Screenshots live in the system temporary directory. Vite retains its large-bundle advisory; no lint script exists.
+WASD/arrows move; E interacts or mounts/dismounts; R at the mounted race gate opens its briefing; I/O/H/J/Escape open windows. Save version 1 remains, with validated additive fields: `storyTarget` (wins over the index), `activityProgress` (ordered for trails), `dialogueTarget`, `horseName` (null until chosen; legacy saves use the default name), `restoredEchoes` and `echoProgress`. On load, restored Echoes are never replayed and passed Echo objectives are recorded.
+
+`npm run typecheck`, `npm run build` and `npm test` pass. `scripts/verify-ui.mjs` passed in headless Chrome against the dev server (60 FPS, no browser errors). It covers a fresh save through Echo III with accelerated travel and real key/click input: horse choice and renaming, wrong-answer retries, the match puzzle, leave/reload/resume mid-Echo, reflections after reload, rewards, cats, race, free roam, and a keyboard-ridden race lap. Run it with `CHROMIUM` set to a Chrome binary. The Vite large-bundle advisory remains; no lint script exists. The user played the build and reported it working. Casual playtime has not been measured.
