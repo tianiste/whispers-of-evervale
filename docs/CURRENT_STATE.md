@@ -70,3 +70,7 @@ After the finale, Sunmeadow shows bunting, lanterns and a "Happy birthday, Hana"
   - Continue, Settings persistence, the New Game confirmation and clicking Begin in the creator
 
   Run it against the dev server with `CHROMIUM` set; it needs local port binding. The Vite large-bundle advisory remains and no lint script exists.
+
+## Deployment
+
+`.github/workflows/pages.yml` checks types, runs content tests, builds with Node 22 and deploys only `dist` to GitHub Pages on pushes to main or manual dispatch. Pages uses the existing HTTPS custom domain `evervaleforhana.me`; Vite uses the domain root as its base. Do not publish the repository root: its entrypoint is uncompiled TypeScript.
