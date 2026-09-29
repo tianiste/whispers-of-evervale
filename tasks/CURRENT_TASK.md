@@ -3,6 +3,8 @@
 agent_tier: standard
 context_budget: small
 
+Status: complete. Local checks, GitHub Pages deployment and live Chromium startup verification passed.
+
 ## Goal
 Build and publish the current birthday game at https://evervaleforhana.me/ on pushes to main.
 
