@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { futureHome, type FutureSpotId } from '../data/echoGames';
 import type { EchoSetting } from '../data/echoes';
 import { FIGURE_WIDTH, figureKey, type FigureId } from './EchoFigures';
 
@@ -7,14 +8,20 @@ export interface EchoStage {
   cue(name: string, instant: boolean): void;
 }
 
-type StageBuilder = (scene: Phaser.Scene, calm: boolean) => EchoStage;
+/** What a stage may show about the player's own game, e.g. their horse in a picture frame. */
+export interface StageContext {
+  horseFrame: number;
+  horseName: string;
+}
+
+type StageBuilder = (scene: Phaser.Scene, calm: boolean, context: StageContext) => EchoStage;
 type Image = Phaser.GameObjects.Image;
 
 const ADD = Phaser.BlendModes.ADD;
 const FONT = 'Arial, sans-serif';
 
-export function createEchoStage(scene: Phaser.Scene, setting: EchoSetting, calm: boolean): EchoStage {
-  return builders[setting](scene, calm);
+export function createEchoStage(scene: Phaser.Scene, setting: EchoSetting, calm: boolean, context: StageContext): EchoStage {
+  return builders[setting](scene, calm, context);
 }
 
 function person(scene: Phaser.Scene, id: FigureId, x: number, feetY: number, scale: number): Image {
@@ -395,4 +402,596 @@ function camper(scene: Phaser.Scene): EchoStage {
   };
 }
 
-const builders: Record<EchoSetting, StageBuilder> = { club, split, camper };
+// Echo IV: a rented seaside flat, a kitchen built for one person, and dinner on the balcony side.
+function flat(scene: Phaser.Scene): EchoStage {
+  scene.cameras.main.setBackgroundColor('#2a2230');
+  scene.add.rectangle(480, 200, 960, 400, 0xf1e4cc);
+  scene.add.rectangle(480, 470, 960, 140, 0xb08a5e);
+  for (let x = 0; x < 960; x += 64) scene.add.rectangle(x, 470, 2, 140, 0x9a764e);
+  scene.add.rectangle(480, 150, 300, 160, 0xf2a07a);
+  const dusk = scene.add.rectangle(480, 150, 300, 160, 0x2a3a6a).setAlpha(0);
+  const sun = scene.add.circle(420, 170, 22, 0xffd8a0);
+  scene.add.rectangle(480, 205, 300, 50, 0x3f7fa8);
+  for (let i = 0; i < 5; i++) scene.add.rectangle(360 + i * 60, 195 + (i % 2) * 14, 26, 2, 0xbfe6f5, 0.8);
+  const stars = Array.from({ length: 10 }, (_, i) => scene.add.rectangle(345 + (i * 67) % 270, 84 + (i * 29) % 70, 2, 2, 0xf4efd8).setAlpha(0));
+  scene.add.rectangle(480, 150, 300, 160).setStrokeStyle(8, 0xf4efe6);
+  scene.add.rectangle(480, 150, 4, 160, 0xf4efe6);
+  for (let x = 340; x <= 620; x += 20) scene.add.rectangle(x, 218, 3, 24, 0x5a4a5a);
+  scene.add.rectangle(480, 206, 300, 3, 0x5a4a5a);
+  // Kitchenette on the left: counter, two-ring stove, one cupboard.
+  scene.add.rectangle(150, 360, 230, 70, 0xe8dcc0).setStrokeStyle(2, 0x9a8a70);
+  scene.add.rectangle(150, 322, 236, 8, 0x8a6a48);
+  for (const x of [110, 170]) scene.add.circle(x, 316, 12, 0x3a3a44).setStrokeStyle(2, 0x22222a);
+  scene.add.rectangle(150, 150, 200, 90, 0xd8c49a).setStrokeStyle(2, 0x9a8a70);
+  const map = scene.add.container(760, 140).setScale(0);
+  map.add([scene.add.rectangle(0, 0, 120, 80, 0xe9d7ac).setStrokeStyle(2, 0x9a7b52), scene.add.rectangle(40, 0, 30, 76, 0x7fb8d0)]);
+  for (const [x, y] of [[-30, -20], [-10, 16], [20, -8], [34, 22]] as const) map.add(scene.add.circle(x, y, 4, 0xc0392b));
+  map.add(scene.add.graphics().lineStyle(2, 0x5a4632, 0.7).strokePoints([{ x: -30, y: -20 }, { x: -10, y: 16 }, { x: 20, y: -8 }, { x: 34, y: 22 }]));
+  // Table and chairs on the right, where dinner ends up.
+  scene.add.rectangle(790, 372, 200, 12, 0x8a6a4a);
+  for (const x of [705, 875]) scene.add.rectangle(x, 410, 8, 66, 0x6e533a);
+  for (const x of [675, 905]) scene.add.rectangle(x, 400, 36, 8, 0x9a7650);
+  const hana = person(scene, 'hana', 560, 440, 3.4);
+  const tian = person(scene, 'tian', 630, 440, 3.4);
+  const dim = scene.add.rectangle(480, 270, 960, 540, 0x0b0e14, 0.55).setDepth(40);
+  const dinner = scene.add.container(790, 358).setAlpha(0);
+  const tray = scene.add.graphics();
+  tray.fillStyle(0xd9dee2).fillPoints([{ x: -44, y: -12 }, { x: 40, y: -14 }, { x: 46, y: 6 }, { x: -46, y: 8 }], true).lineStyle(2, 0x9aa3aa).strokePoints([{ x: -44, y: -12 }, { x: 40, y: -14 }, { x: 46, y: 6 }, { x: -46, y: 8 }], true);
+  tray.fillStyle(0xc8503a).fillRect(-36, -10, 72, 6).fillStyle(0xfff1b8).fillRect(-36, -13, 72, 3);
+  dinner.add(tray);
+  for (const x of [66, 86]) dinner.add(scene.add.graphics().fillStyle(0xe8b44a).slice(x, 0, 10, Math.PI, 0, false).fillPath().fillStyle(0x6fbf5a).fillRect(x - 8, -1, 16, 2));
+  // The special cookies wait on the kitchen counter, clear of the table.
+  const cookies = scene.add.container(232, 312).setAlpha(0);
+  cookies.add(scene.add.ellipse(0, 4, 40, 9, 0xf4efe6));
+  for (const x of [-9, 0, 9]) cookies.add(scene.add.circle(x, 0, 5, 0x8a5a3a));
+  cookies.add(scene.add.text(0, -22, 'special cookies', { fontFamily: FONT, fontSize: '11px', color: '#5a4632', backgroundColor: '#fff6e0', padding: { x: 3, y: 1 } }).setOrigin(0.5));
+  const candle = glow(scene, 790, 330, 0xffc48a, 1.4, 0).setDepth(2);
+  const phones = [hana, tian].map(figure => {
+    const at = pixel(figure, figure === hana ? 18 : 6, 20);
+    return scene.add.rectangle(at.x, at.y, 8, 12, 0x8ff0ff).setAlpha(0).setDepth(3);
+  });
+
+  const lights = (instant: boolean): void => {
+    if (instant) { dim.setAlpha(0); return; }
+    scene.tweens.add({ targets: dim, alpha: 0, duration: 900 });
+    scene.tweens.add({ targets: sun, y: 176, duration: 1400 });
+  };
+  const pinMap = (instant: boolean): void => {
+    if (instant) { map.setScale(1); return; }
+    scene.tweens.add({ targets: map, scale: 1, duration: 420, ease: 'Back.Out' });
+    bubble(scene, hana.x, hana.y - hana.displayHeight - 12, 'Walk tomorrow too?');
+  };
+  const buzz = (instant: boolean): void => {
+    phones.forEach(phone => phone.setAlpha(1));
+    if (instant) return;
+    scene.tweens.add({ targets: phones, alpha: 0.4, duration: 220, yoyo: true, repeat: 5 });
+    for (let i = 0; i < 3; i++) scene.time.delayedCall(i * 300, () => floatText(scene, 595 + (i - 1) * 30, 290, '✦', '#bff8ec'));
+    scene.time.delayedCall(600, () => bubble(scene, tian.x + 20, tian.y - tian.displayHeight - 12, 'Got it!'));
+  };
+  const serve = (instant: boolean): void => {
+    phones.forEach(phone => phone.setVisible(false));
+    const seat = { hana: 690, tian: 890 };
+    if (instant) {
+      dusk.setAlpha(0.85); stars.forEach(star => star.setAlpha(0.9)); sun.setAlpha(0);
+      dinner.setAlpha(1); cookies.setAlpha(1); candle.setAlpha(0.5); hana.setX(seat.hana); tian.setX(seat.tian);
+      return;
+    }
+    scene.tweens.add({ targets: dusk, alpha: 0.85, duration: 1400 });
+    scene.tweens.add({ targets: sun, alpha: 0, y: 200, duration: 1400 });
+    scene.tweens.add({ targets: stars, alpha: 0.9, duration: 900, delay: scene.tweens.stagger(90, {}) });
+    scene.tweens.add({ targets: hana, x: seat.hana, duration: 900, ease: 'Sine.InOut' });
+    scene.tweens.add({ targets: tian, x: seat.tian, duration: 900, ease: 'Sine.InOut' });
+    scene.tweens.add({ targets: [dinner, cookies], alpha: 1, duration: 600, delay: 700 });
+    scene.tweens.add({ targets: candle, alpha: 0.5, duration: 600, delay: 700 });
+    scene.time.delayedCall(1500, () => bubble(scene, seat.tian, tian.y - tian.displayHeight - 12, 'It held!'));
+    scene.time.delayedCall(2300, () => bubble(scene, seat.hana, hana.y - hana.displayHeight - 12, 'Barely.'));
+  };
+  return {
+    cue(name, instant) {
+      if (name === 'room') lights(instant);
+      if (name === 'map') pinMap(instant);
+      if (name === 'phones') buzz(instant);
+      if (name === 'dinner') serve(instant);
+    },
+  };
+}
+
+/** A knitted hat on a figure, placed from its texture pixels. */
+function beanie(scene: Phaser.Scene, figure: Image, color: number): Phaser.GameObjects.Container {
+  const top = pixel(figure, 12.5, 1);
+  const s = figure.scaleX;
+  return scene.add.container(top.x, top.y, [
+    scene.add.rectangle(0, 0, 11 * s, 3 * s, color),
+    scene.add.rectangle(0, 1.5 * s, 11 * s, 1 * s, 0xf4efe6),
+    scene.add.circle(0, -2.5 * s, 1.6 * s, 0xf4efe6),
+  ]);
+}
+
+function snowfall(scene: Phaser.Scene, parent: Phaser.GameObjects.Container, calm: boolean, area = { x: 0, y: 0, width: 960, height: 540 }): void {
+  for (let i = 0; i < 44; i++) {
+    const x = area.x + (i * 157) % area.width;
+    const duration = (calm ? 9000 : 5200) + (i % 5) * 700;
+    const flake = scene.add.rectangle(x, area.y, 3, 3, 0xffffff, 0.85);
+    parent.add(flake);
+    const fall = scene.tweens.add({ targets: flake, y: { from: area.y, to: area.y + area.height }, x: { from: x, to: x + 18 }, duration, repeat: -1 });
+    // Start mid-fall so the scene opens already snowing.
+    fall.seek((i * 377) % duration);
+  }
+}
+
+// Echo V: Christmas Eve cards, snow outside with Maj, then orehi in a warm kitchen.
+function winter(scene: Phaser.Scene, calm: boolean): EchoStage {
+  scene.cameras.main.setBackgroundColor('#101828');
+  const eve = scene.add.container(0, 0);
+  const snow = scene.add.container(0, 0).setAlpha(0);
+  const kitchen = scene.add.container(0, 0).setAlpha(0);
+
+  eve.add([scene.add.rectangle(480, 210, 960, 420, 0x5a3440), scene.add.rectangle(480, 480, 960, 120, 0x6e4a36)]);
+  eve.add(scene.add.rectangle(760, 170, 200, 150, 0x0e1830).setStrokeStyle(8, 0xe8dcc0));
+  snowfall(scene, eve, calm, { x: 662, y: 98, width: 196, height: 144 });
+  const bulbs = Array.from({ length: 22 }, (_, i) => scene.add.circle(30 + i * 43, 28 + Math.sin(i) * 6, 4, [0xffd86a, 0x8ff0ff, 0xff9ab8, 0x9dff8a][i % 4]!));
+  eve.add(bulbs);
+  scene.tweens.add({ targets: bulbs, alpha: 0.35, duration: 800, yoyo: true, repeat: -1, delay: scene.tweens.stagger(70, {}) });
+  for (const [y, w] of [[340, 140], [290, 110], [240, 80], [195, 50]] as const) eve.add(scene.add.triangle(150, y, w / 2, 0, 0, 60, w, 60, 0x2f6a4a).setOrigin(0.5, 0));
+  eve.add(scene.add.rectangle(150, 408, 20, 18, 0x6e4a36));
+  eve.add(scene.add.star(150, 186, 5, 6, 13, 0xffd86a));
+  for (const [x, y, c] of [[120, 300, 0xff6b6b], [175, 280, 0x8ff0ff], [140, 350, 0xffd86a], [185, 345, 0xff9ab8], [150, 245, 0x9dff8a]] as const) eve.add(scene.add.circle(x, y, 5, c));
+  eve.add(scene.add.rectangle(480, 380, 300, 70, 0x3f7a6e).setStrokeStyle(3, 0x2c5a50));
+  eve.add(scene.add.rectangle(480, 440, 220, 12, 0x8a6a4a));
+  const eveHana = person(scene, 'hana', 420, 420, 3.2);
+  const eveTian = person(scene, 'tian', 540, 420, 3.2);
+  eve.add([eveHana, eveTian]);
+  for (const [x, c] of [[450, 0x55cabb], [510, 0xd8a04a]] as const) eve.add(scene.add.rectangle(x, 432, 22, 30, c).setStrokeStyle(2, 0xffd86a).setAngle(x === 450 ? -8 : 10));
+  const binder = scene.add.container(480, 190).setScale(0);
+  binder.add(scene.add.rectangle(0, 0, 200, 120, 0x2c3e5a).setStrokeStyle(3, 0xffd86a));
+  for (let i = 0; i < 6; i++) binder.add(scene.add.rectangle(-60 + (i % 3) * 60, -26 + Math.floor(i / 3) * 52, 40, 44, [0x8fb8e8, 0xd8a04a, 0x55cabb][i % 3]!).setStrokeStyle(1, 0xffffff));
+  eve.add(binder);
+
+  snow.add([scene.add.rectangle(480, 200, 960, 400, 0x1a2a50), scene.add.rectangle(480, 90, 960, 180, 0x101c3a)]);
+  snow.add(scene.add.rectangle(480, 470, 960, 150, 0xe8f0f8));
+  for (const [x, w] of [[140, 260], [520, 320], [860, 240]] as const) snow.add(scene.add.ellipse(x, 400, w, 70, 0xf4f8fc));
+  snow.add(scene.add.rectangle(760, 300, 8, 190, 0x2a2a34));
+  snow.add(glow(scene, 760, 210, 0xffd8a0, 1.6, 0.6));
+  snow.add(scene.add.rectangle(760, 208, 26, 14, 0xffe7a0));
+  const maj = person(scene, 'maj', 330, 430, 3.4);
+  const snowHana = person(scene, 'hana', 460, 430, 3.4);
+  const snowTian = person(scene, 'tian', 560, 430, 3.4);
+  const hats = [beanie(scene, maj, 0xc0392b), beanie(scene, snowHana, 0x55cabb), beanie(scene, snowTian, 0x3a3f5a)];
+  snow.add([maj, snowHana, snowTian, ...hats]);
+  snowfall(scene, snow, calm);
+
+  kitchen.add([scene.add.rectangle(480, 200, 960, 400, 0xe8d8c0), scene.add.rectangle(480, 450, 960, 180, 0xa87e56)]);
+  for (let x = 20; x < 960; x += 40) kitchen.add(scene.add.rectangle(x, 250, 36, 36, 0xf1e8d8).setStrokeStyle(1, 0xd8c8b0));
+  kitchen.add(scene.add.rectangle(200, 150, 180, 130, 0x0e1830).setStrokeStyle(8, 0xf4efe6));
+  snowfall(scene, kitchen, calm, { x: 112, y: 88, width: 176, height: 124 });
+  kitchen.add(scene.add.rectangle(800, 330, 170, 180, 0x3a3a44));
+  const ovenGlow = scene.add.rectangle(800, 345, 120, 70, 0xff9a4a, 0.7);
+  kitchen.add([ovenGlow, glow(scene, 800, 345, 0xffa04a, 1.3, 0.4)]);
+  kitchen.add(scene.add.rectangle(480, 366, 960, 10, 0x8a6a48));
+  const kitchenHana = person(scene, 'hana', 420, 366, 3.2);
+  const kitchenTian = person(scene, 'tian', 530, 366, 3.2);
+  kitchen.add([kitchenHana, kitchenTian]);
+  const plate = scene.add.container(640, 356).setAlpha(0);
+  plate.add(scene.add.ellipse(0, 4, 110, 22, 0xf4efe6).setStrokeStyle(2, 0xd8d0c0));
+  for (const [x, y] of [[-30, -4], [0, -8], [30, -4], [-15, -14], [15, -14]] as const) {
+    plate.add(scene.add.ellipse(x, y, 22, 16, 0xc8904a).setStrokeStyle(1, 0x8a5a2a));
+    plate.add(scene.add.rectangle(x, y, 1, 12, 0x8a5a2a));
+  }
+  kitchen.add(plate);
+
+  let current = eve;
+  const show = (next: Phaser.GameObjects.Container, instant: boolean): void => {
+    if (next === current) return;
+    const previous = current;
+    current = next;
+    if (instant) { previous.setAlpha(0); next.setAlpha(1); return; }
+    scene.tweens.add({ targets: previous, alpha: 0, duration: 700 });
+    scene.tweens.add({ targets: next, alpha: 1, duration: 700 });
+  };
+  const openBinder = (instant: boolean): void => {
+    if (instant) { binder.setScale(1); return; }
+    scene.tweens.add({ targets: binder, scale: 1, duration: 500, ease: 'Back.Out' });
+    for (let i = 0; i < 5; i++) scene.time.delayedCall(i * 140, () => floatText(scene, 420 + i * 30, 250, '✦', '#ffe7a0'));
+  };
+  const flop = (instant: boolean): void => {
+    const figures = [maj, snowHana, snowTian];
+    figures.forEach((figure, i) => {
+      const angel = scene.add.graphics().fillStyle(0xd8e4f0).fillEllipse(figure.x, figure.y - 12, figure.displayHeight, 30)
+        .fillEllipse(figure.x - 10, figure.y - 30, figure.displayHeight * 0.7, 18).fillEllipse(figure.x - 10, figure.y + 6, figure.displayHeight * 0.7, 18);
+      snow.addAt(angel, snow.getIndex(maj));
+      const pose = { angle: i === 1 ? 90 : -90, y: figure.y - 12 };
+      const hat = hats[i]!;
+      if (instant) { figure.setAngle(pose.angle).setY(pose.y); hat.setVisible(false); return; }
+      angel.setAlpha(0);
+      scene.tweens.add({ targets: figure, ...pose, duration: 380, delay: i * 220, ease: 'Quad.In' });
+      scene.tweens.add({ targets: hat, alpha: 0, duration: 200, delay: i * 220 });
+      scene.tweens.add({ targets: angel, alpha: 1, duration: 400, delay: 380 + i * 220 });
+      scene.time.delayedCall(380 + i * 220, () => floatText(scene, figure.x, figure.y - 40, 'flop!', '#ffffff'));
+    });
+  };
+  const serve = (instant: boolean): void => {
+    if (instant) { plate.setAlpha(1); ovenGlow.setAlpha(0.3); return; }
+    scene.tweens.add({ targets: plate, alpha: 1, y: plate.y - 4, duration: 500 });
+    scene.tweens.add({ targets: ovenGlow, alpha: 0.3, duration: 800 });
+    for (let i = 0; i < 3; i++) {
+      const steam = scene.add.circle(620 + i * 20, 330, 5, 0xffffff, 0.5);
+      kitchen.add(steam);
+      scene.tweens.add({ targets: steam, y: 280, alpha: 0, scale: 2, duration: 1400, delay: i * 300, repeat: 2 });
+    }
+    scene.time.delayedCall(900, () => bubble(scene, kitchenTian.x + 20, kitchenTian.y - kitchenTian.displayHeight - 12, 'One more? Just one.'));
+  };
+  return {
+    cue(name, instant) {
+      if (name === 'eve') show(eve, instant);
+      if (name === 'binder') openBinder(instant);
+      if (name === 'snow') show(snow, instant);
+      if (name === 'snow-angels') flop(instant);
+      if (name === 'kitchen') show(kitchen, instant);
+      if (name === 'orehi-plate') serve(instant);
+    },
+  };
+}
+
+/** A seated figure: only head and torso show above the couch seat. */
+function seated(scene: Phaser.Scene, id: FigureId, x: number, seatY: number, rows: number, scale: number): Image {
+  return scene.add.image(x, seatY - rows * scale, figureKey(id)).setOrigin(0.5, 0).setScale(scale).setCrop(0, 0, FIGURE_WIDTH, rows);
+}
+
+function cat(scene: Phaser.Scene, id: string, x: number, feetY: number, scale: number, facingLeft = false): Image {
+  return scene.add.image(x, feetY, `cat-${id}`).setOrigin(0.5, 1).setScale(scale).setFlipX(facingLeft);
+}
+
+// Echo VI: an ordinary evening in an apartment that doesn't exist yet. Click areas come from futureHome in echoGames.ts.
+function future(scene: Phaser.Scene, calm: boolean, context: StageContext): EchoStage {
+  scene.cameras.main.setBackgroundColor('#1a1612');
+  const at = (id: FutureSpotId): { x: number; y: number } => futureHome.spots.find(spot => spot.id === id)!;
+  const lines = futureHome;
+
+  // Room shell: cream walls, a teal accent wall behind the couch, oak floor and a rug.
+  scene.add.rectangle(480, 180, 960, 360, 0xe6d6ba);
+  scene.add.rectangle(475, 208, 350, 296, 0x4f8f88);
+  for (let x = 314; x < 650; x += 28) scene.add.rectangle(x, 208, 1, 296, 0x46827b);
+  scene.add.rectangle(480, 357, 960, 10, 0x8a6a48);
+  scene.add.rectangle(480, 451, 960, 178, 0xb88a58);
+  for (let row = 0; row < 8; row++) {
+    const y = 362 + row * 22;
+    scene.add.rectangle(480, y + 22, 960, 2, 0x9c7446);
+    for (let k = 0; k < 4; k++) scene.add.rectangle((row * 137 + k * 260) % 960, y + 11, 2, 20, 0x9c7446);
+  }
+  scene.add.ellipse(480, 428, 460, 84, 0x4f9a92);
+  scene.add.ellipse(480, 428, 430, 66, 0xf1e6cc);
+  scene.add.ellipse(480, 428, 380, 44).setStrokeStyle(2, 0x7cc4b8);
+
+  // String lights along the ceiling.
+  const bulbs: Phaser.GameObjects.Arc[] = [];
+  for (let i = 0; i < 24; i++) {
+    const x = 20 + i * 40;
+    const y = 28 + Math.sin((i % 6) / 6 * Math.PI) * 12;
+    bulbs.push(scene.add.circle(x, y, 3, i % 3 ? 0xffd98a : 0xbff8ec));
+    glow(scene, x, y + 2, 0xffd08a, 0.3, 0.35);
+  }
+  scene.add.graphics().lineStyle(1, 0x5a4632, 0.8).strokePoints(bulbs.map(bulb => ({ x: bulb.x, y: bulb.y - 3 })));
+  if (!calm) scene.tweens.add({ targets: bulbs, alpha: 0.55, duration: 1200, yoyo: true, repeat: -1, delay: scene.tweens.stagger(110, {}) });
+
+  // Kitchen: window onto evening rooftops, fridge, counter, a pot on the stove and the burger bag.
+  ([0x3a3a6a, 0x5a4a78, 0x9a6a7a, 0xd8906a] as const).forEach((color, i) => scene.add.rectangle(160, 121 + i * 25, 128, 25, color));
+  scene.add.circle(198, 128, 8, 0xf4efd8);
+  for (const [x, w, h] of [[108, 26, 34], [134, 30, 48], [166, 22, 28], [192, 34, 40]] as const) {
+    scene.add.rectangle(x, 212 - h / 2, w, h, 0x1e2238);
+    scene.add.rectangle(x - 4, 212 - h + 10, 4, 4, 0xffd98a);
+  }
+  scene.add.rectangle(160, 160, 128, 104).setStrokeStyle(6, 0xf4efe6);
+  scene.add.rectangle(160, 160, 4, 104, 0xf4efe6);
+  for (const x of [92, 228]) {
+    scene.add.rectangle(x, 166, 16, 124, 0x55cabb);
+    scene.add.rectangle(x - 3, 166, 2, 124, 0x3f9a8c);
+  }
+  scene.add.rectangle(45, 252, 62, 208, 0xe8e4da).setStrokeStyle(2, 0xb8b2a4);
+  scene.add.rectangle(45, 206, 62, 2, 0xb8b2a4);
+  scene.add.rectangle(70, 186, 3, 26, 0x9a948a);
+  scene.add.rectangle(70, 240, 3, 34, 0x9a948a);
+  for (const [x, y, c] of [[30, 180, 0x55cabb], [48, 232, 0xf2a8c0], [34, 262, 0xffd86a]] as const) scene.add.rectangle(x, y, 8, 8, c);
+  scene.add.rectangle(50, 256, 16, 20, 0xf4efe6).setStrokeStyle(1, 0x9a948a);
+  scene.add.rectangle(50, 258, 10, 8, 0x8a4f2d);
+  scene.add.rectangle(173, 319, 178, 74, 0x5e8f86).setStrokeStyle(2, 0x46706a);
+  for (const x of [128, 173, 218]) scene.add.rectangle(x, 319, 2, 70, 0x46706a);
+  for (const x of [120, 136, 165, 181, 210, 226]) scene.add.circle(x, 312, 2, 0xc8a46e);
+  scene.add.rectangle(173, 277, 184, 10, 0x8a6a48);
+  scene.add.ellipse(118, 272, 30, 6, 0x2a2a30);
+  scene.add.container(118, 262, [scene.add.rectangle(0, 0, 26, 16, 0x5a6470), scene.add.rectangle(0, -9, 30, 3, 0x7a8490), scene.add.rectangle(-17, -4, 6, 3, 0x2a2a30)]);
+  for (const [x, h, c] of [[94, 14, 0xc0392b], [102, 10, 0x6fbf5a]] as const) scene.add.rectangle(x, 272 - h / 2, 6, h, c);
+  const bag = scene.add.container(238, 272);
+  bag.add([
+    scene.add.rectangle(0, -15, 24, 30, 0xc89a5a).setStrokeStyle(1, 0x9a7440),
+    scene.add.rectangle(0, -24, 24, 6, 0xd0453a),
+    scene.add.ellipse(0, -12, 12, 5, 0xe8b44a), scene.add.rectangle(0, -10, 12, 2, 0x8a4f2d), scene.add.ellipse(0, -8, 12, 4, 0xe8b44a),
+  ]);
+  const fries = scene.add.container(258, 272);
+  for (let i = 0; i < 5; i++) fries.add(scene.add.rectangle(-5 + i * 2.5, -18 - (i % 2) * 3, 2, 10, 0xf2d060));
+  fries.add(scene.add.polygon(0, -8, [-7, -8, 7, -8, 5, 8, -5, 8], 0xd0453a).setOrigin(0.5));
+  const tian = person(scene, 'tian', 178, 356, 3.1);
+  const panAt = pixel(tian, 21, 20);
+  const pan = scene.add.container(panAt.x + 14, panAt.y, [scene.add.ellipse(0, 0, 26, 8, 0x2a2a30), scene.add.rectangle(-18, 0, 14, 3, 0x6e533a), scene.add.ellipse(0, -2, 18, 4, 0xe8b44a)]);
+  const steam = [0, 1, 2].map(i => scene.add.circle(112 + i * 7, 248, 4, 0xffffff, 0.45));
+  steam.forEach((puff, i) => {
+    if (calm) return;
+    scene.tweens.add({ targets: puff, y: 200, alpha: 0, scale: 2, duration: 1800, delay: i * 600, repeat: -1 });
+  });
+
+  // Living room: the chosen horse above the couch, a lamp, the couch, and everyone on it.
+  scene.add.rectangle(480, 146, 158, 112, 0x7a5236).setStrokeStyle(2, 0x5a3a24);
+  scene.add.rectangle(480, 131, 138, 60, 0xbfe6f0);
+  scene.add.ellipse(452, 170, 120, 40, 0x8fbf88);
+  scene.add.ellipse(520, 172, 110, 34, 0x7aac74);
+  scene.add.rectangle(480, 172, 138, 20, 0x8fbf88);
+  scene.add.image(480, 150, 'horses', context.horseFrame).setScale(0.95);
+  scene.add.rectangle(480, 146, 138, 92).setStrokeStyle(3, 0xe9d7ac);
+  const plaque = scene.add.rectangle(480, 212, 84, 16, 0xe9d7ac).setStrokeStyle(1, 0x9a7b52);
+  scene.add.text(480, 212, context.horseName.toUpperCase(), { fontFamily: FONT, fontSize: '10px', fontStyle: 'bold', color: '#5a4632', letterSpacing: 1 }).setOrigin(0.5);
+  scene.add.rectangle(672, 268, 4, 176, 0x3a3230);
+  scene.add.ellipse(672, 356, 32, 8, 0x3a3230);
+  scene.add.polygon(672, 176, [-18, 14, 18, 14, 12, -14, -12, -14], 0xf2d9a4).setStrokeStyle(1, 0xc8a46e);
+  const lamp = glow(scene, 672, 206, 0xffd8a0, 2.4, 0.4);
+  scene.add.rectangle(480, 266, 324, 64, 0xcdb994).setStrokeStyle(2, 0xa8936c);
+  scene.add.rectangle(480, 236, 324, 8, 0xd8c7a6);
+  scene.add.rectangle(350, 274, 38, 32, 0x55cabb).setAngle(-10).setStrokeStyle(1, 0x3f9a8c);
+  const hana = seated(scene, 'hana', 398, 300, 21, 3.1);
+  const tianSeated = seated(scene, 'tian', 548, 300, 26, 3.1).setAlpha(0);
+  const miki = cat(scene, 'miki', 466, 308, 3);
+  scene.add.rectangle(480, 312, 316, 26, 0xd8c7a6).setStrokeStyle(1, 0xa8936c);
+  for (const x of [428, 532]) scene.add.rectangle(x, 312, 2, 22, 0xb8a47e);
+  scene.add.rectangle(480, 333, 344, 18, 0xb8a47e);
+  for (const x of [322, 638]) {
+    scene.add.rectangle(x, 300, 30, 78, 0xc4ae86).setStrokeStyle(2, 0xa8936c);
+    scene.add.rectangle(x, 346, 6, 10, 0x6e533a);
+  }
+  const blanket = scene.add.container(322, 290);
+  for (let i = 0; i < 6; i++) blanket.add(scene.add.rectangle(0, -18 + i * 9, 32, 9, i % 2 ? 0xf4efe6 : 0x55cabb));
+  scene.add.container(398, 292, [scene.add.rectangle(0, 0, 18, 8, 0x2a2a34), scene.add.circle(5, -1, 1.5, 0x5ff0e0), scene.add.circle(-5, -1, 1.5, 0xff9ab8)]);
+  const tianController = scene.add.container(548, 292, [scene.add.rectangle(0, 0, 18, 8, 0x2a2a34), scene.add.circle(5, -1, 1.5, 0xffd86a)]).setAlpha(0);
+  const nomi = cat(scene, 'nomi', 640, 264, 2.4, true);
+
+  // Coffee table: mugs, the phone with the creature game, and later the cake.
+  scene.add.rectangle(400, 392, 6, 22, 0x6e533a);
+  scene.add.rectangle(560, 392, 6, 22, 0x6e533a);
+  scene.add.rectangle(480, 382, 172, 8, 0x7a5a3c);
+  scene.add.rectangle(480, 374, 180, 10, 0x8a6a48);
+  scene.add.rectangle(426, 364, 10, 12, 0x55cabb);
+  scene.add.rectangle(446, 364, 10, 12, 0xf4efe6).setStrokeStyle(1, 0xc8b89a);
+  const phone = scene.add.container(540, 366, [scene.add.rectangle(0, 0, 24, 13, 0x1d1a22), scene.add.rectangle(0, 0, 20, 9, 0x8fd8c8), scene.add.circle(0, 0, 3, 0xf4f1ea), scene.add.rectangle(3, 0, 2, 1, 0xf2a33a)]).setAngle(-8);
+
+  // Floor friends: Bolt with his toy and water bowl, Viski, and Maks peeking out from under the table.
+  const bowl = scene.add.container(250, 462, [scene.add.ellipse(0, 0, 34, 12, 0x9aa8b0), scene.add.ellipse(0, -2, 26, 7, 0x7fc8e8)]);
+  const boltAt = at('bolt');
+  const boltScale = 2.4;
+  const k = boltScale / 1.6;
+  const tail = scene.add.image(-22 * k, 0, 'bolt-tail').setOrigin(0, 0.5).setScale(boltScale).setAngle(-155);
+  const ball = scene.add.image(27 * k, -3 * k, 'bolt-ball').setScale(boltScale);
+  const bolt = scene.add.container(boltAt.x, boltAt.y + 4, [tail, scene.add.image(0, 0, 'bolt').setScale(boltScale), ball]);
+  let wag = scene.tweens.add({ targets: tail, angle: -135, duration: calm ? 320 : 180, yoyo: true, repeat: -1 });
+  const viski = cat(scene, 'viski', at('viski').x, 448, 2.4);
+  const maks = cat(scene, 'maks', at('maks').x, 460, 2.3, true);
+  for (const [x, y, c] of [[620, 500, 0xff9ab8], [140, 486, 0xffd86a]] as const) scene.add.circle(x, y, 5, c);
+  scene.add.rectangle(40, 372, 22, 8, 0x3b3f5c);
+  scene.add.rectangle(62, 376, 22, 8, 0xdcdcd6);
+
+  // TV corner: anime on screen, a console, a block plush, the bookshelf and the plant Maks hides behind.
+  scene.add.rectangle(780, 332, 164, 58, 0x9a7650).setStrokeStyle(2, 0x7a5a3c);
+  scene.add.rectangle(780, 332, 2, 50, 0x7a5a3c);
+  for (const x of [740, 820]) scene.add.circle(x, 332, 2, 0xe9d7ac);
+  scene.add.rectangle(780, 302, 170, 6, 0x8a6a48);
+  scene.add.rectangle(730, 294, 32, 10, 0x2a2a34);
+  scene.add.rectangle(740, 294, 4, 2, 0x5ff0e0);
+  const block = scene.add.container(at('blocks').x, 288, [
+    scene.add.rectangle(0, 0, 22, 22, 0x8a5a3a), scene.add.rectangle(0, -8, 22, 6, 0x6fbf5a),
+    scene.add.rectangle(-5, 3, 3, 3, 0x6e4428), scene.add.rectangle(5, 6, 3, 3, 0x6e4428), scene.add.rectangle(-8, -5, 3, 3, 0x8fd06a),
+  ]);
+  scene.add.rectangle(780, 250, 146, 94, 0x1d1a22);
+  const anime = scene.add.container(780, 250);
+  anime.add([scene.add.rectangle(0, -20, 134, 42, 0xf2b8d8), scene.add.rectangle(0, 20, 134, 40, 0xc8a8f0)]);
+  for (let i = 0; i < 6; i++) anime.add(scene.add.rectangle(-60 + i * 24, -8 + (i % 3) * 10, 18, 1, 0xffffff, 0.8));
+  anime.add([
+    scene.add.polygon(-10, -18, [-22, 10, -16, -14, -6, 2, 0, -20, 8, 0, 18, -14, 22, 10], 0xf2a33a).setOrigin(0.5),
+    scene.add.circle(-10, -2, 16, 0xf0c8a8),
+    scene.add.ellipse(-16, -2, 7, 11, 0x2a2a44), scene.add.ellipse(-4, -2, 7, 11, 0x2a2a44),
+    scene.add.rectangle(-17, -5, 2, 3, 0xffffff), scene.add.rectangle(-5, -5, 2, 3, 0xffffff),
+    scene.add.star(34, -18, 4, 2, 6, 0xffffff), scene.add.star(46, 2, 4, 2, 5, 0xfff1b8),
+    scene.add.rectangle(0, 32, 134, 14, 0x000000, 0.55),
+  ]);
+  const subtitle = scene.add.text(0, 32, '…!!', { fontFamily: FONT, fontSize: '10px', color: '#ffffff' }).setOrigin(0.5);
+  anime.add(subtitle);
+  const gameScreen = scene.add.container(780, 250).setAlpha(0);
+  gameScreen.add([scene.add.rectangle(0, -10, 134, 60, 0x8fd0ff), scene.add.rectangle(0, 26, 134, 28, 0x6fbf5a)]);
+  for (let i = 0; i < 9; i++) gameScreen.add(scene.add.rectangle(-60 + i * 15, 18 - (i % 3) * 8, 14, 14, i % 2 ? 0x8a5a3a : 0x6fbf5a));
+  gameScreen.add(scene.add.text(40, -28, 'GG', { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1a22', strokeThickness: 2 }).setOrigin(0.5));
+  const screenGlow = glow(scene, 780, 250, 0xc8b8ff, 2.2, 0.16);
+  if (!calm) scene.tweens.add({ targets: screenGlow, alpha: 0.26, duration: 700, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [3] });
+  scene.add.rectangle(913, 226, 74, 262, 0x6e5236).setStrokeStyle(3, 0x8a6a48);
+  for (const y of [150, 205, 260, 310]) scene.add.rectangle(913, y, 70, 5, 0x8a6a48);
+  for (let i = 0; i < 7; i++) scene.add.rectangle(884 + i * 9, 132 - (i % 3) * 3, 7, 30 + (i % 3) * 5, [0x55cabb, 0xd0654d, 0xe9d7ac, 0x5a6a8a][i % 4]!);
+  const figure = scene.add.container(at('figure').x, 203, [
+    scene.add.rectangle(0, -12, 10, 22, 0x2f3a44), scene.add.rectangle(0, -26, 10, 8, 0x3a4652),
+    scene.add.rectangle(-7, -18, 5, 5, 0x55cabb), scene.add.rectangle(7, -18, 5, 5, 0x55cabb),
+  ]);
+  const visor = scene.add.rectangle(at('figure').x, 177, 7, 2, 0x5ff0e0);
+  const trophy = scene.add.container(at('trophy').x, 203, [
+    scene.add.rectangle(0, -2, 14, 4, 0x9a7b42), scene.add.rectangle(0, -8, 4, 8, 0xe8c14a), scene.add.rectangle(0, -20, 16, 14, 0xe8c14a),
+    scene.add.text(0, -20, '#1', { fontFamily: FONT, fontSize: '8px', fontStyle: 'bold', color: '#6e4a1e' }).setOrigin(0.5),
+  ]);
+  scene.add.circle(900, 248, 9, 0xf4f1ea);
+  scene.add.rectangle(907, 248, 5, 3, 0xf2a33a);
+  for (const [x, w, c] of [[924, 12, 0xd0654d], [938, 10, 0x4f8f88]] as const) scene.add.rectangle(x, 244, w, 28, c);
+  for (const [x, c] of [[892, 0xe9d7ac], [914, 0x55cabb], [934, 0xd8a04a]] as const) scene.add.rectangle(x, 298, 18, 18, c).setStrokeStyle(1, 0x5a4632);
+  scene.add.rectangle(900, 336, 28, 34, 0xc8a46e).setStrokeStyle(1, 0x8a6a48);
+  scene.add.rectangle(930, 336, 24, 34, 0xa8c8b8).setStrokeStyle(1, 0x8a6a48);
+  const maco = cat(scene, 'maco', at('maco').x, 96, 2.4).setOrigin(0.5, 0).setFlipY(true).setY(96 - 24 * 2.4);
+  scene.add.rectangle(878, 456, 30, 24, 0xc0663a).setStrokeStyle(1, 0x8a4a2a);
+  for (const [dx, dy, r] of [[-14, -20, 14], [10, -26, 16], [0, -40, 14], [-6, -30, 12]] as const) scene.add.circle(878 + dx, 452 + dy, r, 0x4f8a4a);
+
+  // Warm evening light over everything, and the haze of a memory that isn't written yet.
+  scene.add.rectangle(480, 270, 960, 540, 0xffb070, 0.07).setBlendMode(ADD);
+  const unwritten = scene.add.rectangle(480, 270, 960, 540, 0x0a0c18, 0.84).setDepth(40);
+  const haze = [0, 1, 2, 3].map(i => glow(scene, 200 + i * 190, 200 + (i % 2) * 120, 0x8ffff0, 3, 0.18).setDepth(41));
+  haze.forEach((puff, i) => { if (!calm) scene.tweens.add({ targets: puff, x: puff.x + 40, alpha: 0.08, duration: 3000 + i * 400, yoyo: true, repeat: -1, ease: 'Sine.InOut' }); });
+
+  const head = (figure: Image, offset = 12): { x: number; y: number } => ({ x: figure.x, y: figure.originY === 0 ? figure.y - offset : figure.y - figure.displayHeight - offset });
+  const say = (target: Image, text: string, delay = 0, dx = 0): void => {
+    scene.time.delayedCall(delay, () => { const top = head(target); bubble(scene, top.x + dx, top.y, text, 2200); });
+  };
+  const hop = (target: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, height = 10): void => {
+    scene.tweens.add({ targets: target, y: `-=${height}`, duration: 140, yoyo: true, ease: 'Sine.Out' });
+  };
+  const hearts = (x: number, y: number, count = 3): void => {
+    for (let i = 0; i < count; i++) scene.time.delayedCall(i * 180, () => floatText(scene, x - 12 + i * 12, y, '♥', '#ff6f91'));
+  };
+  const cats = [nomi, miki, maks, maco, viski];
+  let tianOnCouch = false;
+  let celebrated = false;
+
+  const lightUp = (instant: boolean): void => {
+    const targets = [unwritten, ...haze];
+    if (instant) { targets.forEach(item => item.setAlpha(0).setVisible(false)); return; }
+    scene.tweens.add({ targets, alpha: 0, duration: 1600, onComplete: () => targets.forEach(item => item.setVisible(false)) });
+    scene.tweens.add({ targets: lamp, alpha: 0.55, duration: 800, yoyo: true });
+  };
+  const sitDown = (instant: boolean): void => {
+    if (tianOnCouch) return;
+    tianOnCouch = true;
+    anime.setAlpha(instant ? 0 : 1);
+    if (instant) { tian.setAlpha(0); pan.setAlpha(0); tianSeated.setAlpha(1); tianController.setAlpha(1); gameScreen.setAlpha(1); return; }
+    scene.tweens.add({ targets: [tian, pan], alpha: 0, duration: 500 });
+    scene.tweens.add({ targets: [tianSeated, tianController], alpha: 1, duration: 500, delay: 400 });
+    scene.tweens.add({ targets: anime, alpha: 0, duration: 400, delay: 900 });
+    scene.tweens.add({ targets: gameScreen, alpha: 1, duration: 400, delay: 900 });
+    scene.time.delayedCall(1300, () => {
+      for (let i = 0; i < 3; i++) scene.time.delayedCall(i * 200, () => floatText(scene, 760 + i * 20, 220, '✦', '#bff8ec'));
+      say(tianSeated, 'One more match?', 300);
+      say(hana, 'Obviously.', 1500);
+    });
+  };
+  const unfinished = (instant: boolean): void => {
+    // Soft light gathers at the edges, as if the rest of the memory is still being written. It stays above the finale's dimming.
+    const edges = Array.from({ length: 14 }, (_, i) => {
+      const side = i % 4;
+      const t = Math.floor(i / 4) / 3 + 0.12;
+      const x = side === 2 ? 0 : side === 3 ? 960 : t * 960;
+      const y = side === 0 ? 0 : side === 1 ? 540 : t * 540;
+      return glow(scene, x, y, 0xbff8ec, 3.2, 0).setDepth(92);
+    });
+    if (instant) { edges.forEach(edge => edge.setAlpha(0.3)); return; }
+    scene.tweens.add({ targets: edges, alpha: 0.3, duration: 2400, ease: 'Sine.InOut' });
+    for (let i = 0; i < (calm ? 8 : 24); i++) {
+      const edge = i % 4;
+      const x = edge === 2 ? 20 : edge === 3 ? 940 : (i * 97) % 960;
+      const y = edge === 0 ? 30 : edge === 1 ? 510 : (i * 61) % 540;
+      const mote = scene.add.rectangle(x, y, 3, 3, 0xffffff, 0.9).setDepth(93).setBlendMode(ADD);
+      scene.tweens.add({ targets: mote, x: x + (480 - x) * 0.12, y: y - 30, alpha: 0, duration: 2600, delay: i * 90, onComplete: () => mote.destroy() });
+    }
+  };
+  const birthday = (instant: boolean): void => {
+    if (celebrated) return;
+    celebrated = true;
+    sitDown(true);
+    const bunting = scene.add.container(480, instant ? 70 : 40).setAlpha(instant ? 1 : 0);
+    for (let i = 0; i < 13; i++) {
+      const x = -168 + i * 28;
+      const y = Math.sin(i / 12 * Math.PI) * 10;
+      bunting.add(scene.add.triangle(x, y, 0, 0, 16, 0, 8, 14, [0x55cabb, 0xf4efe6, 0xe8c14a][i % 3]!).setOrigin(0.5, 0));
+    }
+    bunting.add(scene.add.graphics().lineStyle(1, 0x5a4632).strokePoints(Array.from({ length: 13 }, (_, i) => ({ x: -160 + i * 28, y: Math.sin(i / 12 * Math.PI) * 10 }))));
+    const cake = scene.add.container(482, 368).setAlpha(instant ? 1 : 0);
+    cake.add([scene.add.ellipse(0, 1, 50, 8, 0xf4efe6), scene.add.rectangle(0, -8, 38, 16, 0xf4e0c8), scene.add.rectangle(0, -15, 38, 4, 0x55cabb), scene.add.rectangle(0, -4, 38, 2, 0xf2a8c0)]);
+    const flames = [-10, 0, 10].map(x => {
+      cake.add(scene.add.rectangle(x, -21, 2, 8, [0xffd86a, 0x8ff0ff, 0xff9ab8][(x + 10) / 10]!));
+      const flame = scene.add.ellipse(x, -27, 3, 5, 0xffb04a);
+      cake.add([glow(scene, x, -27, 0xffc070, 0.25, 0.6), flame]);
+      return flame;
+    });
+    if (!calm) scene.tweens.add({ targets: flames, scaleY: 1.4, duration: 180, yoyo: true, repeat: -1, delay: scene.tweens.stagger(60, {}) });
+    nomi.setFlipX(true);
+    maco.setFlipY(false).setY(96).setOrigin(0.5, 1);
+    wag.remove();
+    wag = scene.tweens.add({ targets: tail, angle: -125, duration: calm ? 240 : 90, yoyo: true, repeat: -1 });
+    if (instant) return;
+    scene.tweens.add({ targets: bunting, y: 70, alpha: 1, duration: 700, ease: 'Back.Out' });
+    scene.tweens.add({ targets: cake, alpha: 1, duration: 600, delay: 300 });
+    scene.tweens.add({ targets: lamp, alpha: 0.6, duration: 900 });
+    hearts(miki.x, miki.y - miki.displayHeight - 4);
+    say(miki, lines.catLines.miki, 500);
+    const colors = [0x55cabb, 0xffd86a, 0xff9ab8, 0xbff8ec, 0xf4efe6];
+    for (let i = 0; i < (calm ? 20 : 70); i++) {
+      const x = (i * 131) % 960;
+      const piece = scene.add.rectangle(x, -10, 4, 7, colors[i % colors.length]!).setDepth(35).setAngle(i * 23);
+      scene.tweens.add({ targets: piece, y: 560, x: x + (i % 2 ? 30 : -30), angle: piece.angle + 360, duration: (calm ? 5200 : 3200) + (i % 7) * 300, delay: (i % 12) * 140, onComplete: () => piece.destroy() });
+    }
+  };
+
+  const reactions: Record<string, (instant: boolean) => void> = {
+    room: lightUp,
+    evening: sitDown,
+    unfinished,
+    birthday,
+    cats: (instant) => {
+      if (instant) return;
+      cats.forEach((target, i) => scene.time.delayedCall(i * 160, () => floatText(scene, target.x, target.y - (target.flipY ? 0 : target.displayHeight) - 6, '♥', '#ff6f91')));
+      say(miki, lines.catLines.miki, 300);
+    },
+    nomi: () => { say(nomi, lines.catLines.nomi); nomi.setFlipX(!nomi.flipX); scene.tweens.add({ targets: nomi, x: nomi.x + (nomi.flipX ? -4 : 4), duration: 160, yoyo: true }); },
+    miki: () => { say(miki, lines.catLines.miki); hearts(miki.x, miki.y - miki.displayHeight - 4); scene.tweens.add({ targets: miki, scaleY: 2.7, duration: 120, yoyo: true, repeat: 1 }); },
+    'maks-flee': () => {
+      const target = futureHome.spots.find(spot => spot.id === 'maks')!.flee!;
+      floatText(scene, maks.x, maks.y - 60, '!', '#fff0d1');
+      for (let i = 0; i < 4; i++) {
+        const dust = scene.add.circle(maks.x - i * 8, maks.y - 4, 5, 0xd8c7a6, 0.6);
+        scene.tweens.add({ targets: dust, alpha: 0, scale: 2, duration: 500, delay: i * 60, onComplete: () => dust.destroy() });
+      }
+      maks.setFlipX(false);
+      scene.tweens.add({ targets: maks, x: target.x - 8, y: target.y + 20, duration: 360, ease: 'Quad.Out' });
+    },
+    maks: () => { say(maks, lines.catLines.maks); hop(maks, 6); },
+    maco: () => { floatText(scene, maco.x, maco.y + 10, lines.catLines.maco, '#fff0d1'); scene.tweens.add({ targets: maco, angle: { from: -10, to: 10 }, duration: 160, yoyo: true, repeat: 2, onComplete: () => maco.setAngle(0) }); },
+    viski: () => {
+      const home = { x: viski.x, y: viski.y };
+      scene.tweens.add({
+        targets: viski, x: 720, y: 386, duration: 420, ease: 'Quad.In',
+        onComplete: () => {
+          floatText(scene, 724, 330, lines.catLines.viski, '#fff0d1');
+          floatText(scene, 740, 346, '✦', '#ffe27a');
+          scene.tweens.add({ targets: viski, x: home.x, y: home.y, duration: 500, ease: 'Sine.Out', onComplete: () => scene.tweens.add({ targets: viski, angle: 360, duration: 700, onComplete: () => viski.setAngle(0) }) });
+        },
+      });
+    },
+    bolt: () => {
+      hop(bolt, 14);
+      hearts(bolt.x + 20, bolt.y - 50);
+      ball.setPosition(33 * k, 20 * k);
+      scene.time.delayedCall(1400, () => ball.setPosition(27 * k, -3 * k));
+      for (let i = 0; i < 5; i++) {
+        const drop = scene.add.circle(bowl.x, bowl.y - 4, 2, 0x9fd8f0);
+        scene.tweens.add({ targets: drop, x: bowl.x - 14 + i * 7, y: bowl.y - 18 - (i % 2) * 6, alpha: 0, duration: 420, onComplete: () => drop.destroy() });
+      }
+    },
+    hana: () => { say(tianOnCouch ? tianSeated : tian, lines.joke[0]); say(tianOnCouch ? tianSeated : tian, lines.joke[1], 1500); say(hana, lines.joke[2], 3000); scene.time.delayedCall(3000, () => scene.tweens.add({ targets: hana, x: hana.x + 2, duration: 50, yoyo: true, repeat: 3 })); },
+    tian: () => {
+      const cook = tianOnCouch ? tianSeated : tian;
+      say(cook, lines.dinner[0]); say(hana, lines.dinner[1], 1500); say(cook, lines.dinner[2], 3000);
+      steam.forEach(puff => scene.tweens.add({ targets: puff, scale: 2.2, duration: 200, yoyo: true }));
+    },
+    picture: () => {
+      const shine = scene.add.rectangle(410, 146, 14, 96, 0xffffff, 0.5).setBlendMode(ADD).setAngle(14);
+      scene.tweens.add({ targets: shine, x: 550, alpha: 0, duration: 700, onComplete: () => shine.destroy() });
+      scene.tweens.add({ targets: plaque, scale: 1.12, duration: 160, yoyo: true });
+    },
+    tv: () => { subtitle.setText('!!!'); scene.tweens.add({ targets: screenGlow, alpha: 0.5, duration: 140, yoyo: true, repeat: 2 }); for (let i = 0; i < 3; i++) scene.time.delayedCall(i * 150, () => floatText(scene, 750 + i * 30, 200, '✦', '#f2b8d8')); },
+    phone: () => { scene.tweens.add({ targets: phone, angle: 4, duration: 60, yoyo: true, repeat: 5, onComplete: () => phone.setAngle(-8) }); floatText(scene, phone.x, phone.y - 18, '✦', '#bff8ec'); },
+    takeout: () => { scene.tweens.add({ targets: bag, angle: 6, duration: 80, yoyo: true, repeat: 3, onComplete: () => bag.setAngle(0) }); hop(fries, 6); },
+    figure: () => { scene.tweens.add({ targets: visor, scaleX: 2, alpha: 0.4, duration: 200, yoyo: true, repeat: 2 }); hop(figure, 4); },
+    trophy: () => { hop(trophy, 6); floatText(scene, trophy.x, trophy.y - 40, '★', '#ffe27a'); },
+    blocks: () => { hop(block, 10); floatText(scene, block.x, block.y - 24, '+1', '#8fd06a'); },
+  };
+  return {
+    cue(name, instant) { reactions[name]?.(instant); },
+  };
+}
+
+const builders: Record<EchoSetting, StageBuilder> = { club, split, camper, flat, winter, future };

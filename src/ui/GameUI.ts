@@ -6,8 +6,6 @@ export class GameUI {
   readonly dialog = document.createElement('dialog');
   private readonly quest = document.createElement('div');
   private readonly prompt = document.createElement('div');
-  private readonly race = document.createElement('div');
-  private readonly countdown = document.createElement('div');
   private readonly toast = document.createElement('div');
   private toastTimer = 0;
   private onClose: (() => void) | undefined;
@@ -17,17 +15,14 @@ export class GameUI {
     this.root.className = 'game-ui';
     this.quest.className = 'objective hud-panel';
     this.prompt.className = 'interaction hud-panel';
-    this.race.className = 'race-hud hud-panel';
     this.toast.className = 'reward-toast';
-    this.countdown.className = 'race-countdown';
-    this.countdown.setAttribute('role', 'status');
     this.toast.setAttribute('role', 'status');
     this.quest.setAttribute('aria-live', 'polite');
     const menu = document.createElement('button');
     menu.className = 'menu-toggle';
     menu.textContent = 'Menu · Esc';
     menu.onclick = () => openMenu('pause');
-    this.root.append(this.quest, this.prompt, this.race, menu, this.toast, this.countdown);
+    this.root.append(this.quest, this.prompt, menu, this.toast);
     this.dialog.className = 'game-dialog';
     this.dialog.setAttribute('aria-labelledby', 'window-title');
     this.dialog.addEventListener('cancel', (event) => { event.preventDefault(); this.close(); });
@@ -45,7 +40,6 @@ export class GameUI {
     document.body.append(this.root, this.dialog);
     window.addEventListener('keydown', this.handleShortcut);
     this.setPrompt('');
-    this.setRace('');
   }
 
   get isOpen(): boolean { return this.dialog.open; }
@@ -76,20 +70,22 @@ export class GameUI {
     if (this.opener?.classList.contains('menu-toggle')) this.opener.blur();
   }
 
+  /** Closes the dialog without its close callback, e.g. while a canvas minigame takes over. */
+  dismiss(): void {
+    this.onClose = undefined;
+    this.close();
+  }
+
+  /** Hides world HUD chrome while another scene (Echo, race, grooming) owns the screen. */
+  setHudHidden(hidden: boolean): void { this.root.classList.toggle('hud-hidden', hidden); }
+
   bind(id: string, action: () => void): void {
     const button = this.dialog.querySelector<HTMLButtonElement>(`#${id}`);
     if (button) button.onclick = action;
   }
 
-  setCountdown(text: string): void { this.countdown.textContent = text; this.countdown.hidden = !text; }
-
   setQuest(text: string): void { if (this.quest.textContent !== text) this.quest.textContent = text; }
   setPrompt(text: string): void { this.prompt.textContent = text; this.prompt.hidden = !text; }
-  setRace(text: string): void {
-    this.race.textContent = text;
-    this.race.hidden = !text;
-    this.quest.hidden = Boolean(text);
-  }
   notify(text: string): void {
     if (this.isOpen) {
       let feedback = this.dialog.querySelector<HTMLElement>('.inline-feedback');
@@ -104,7 +100,8 @@ export class GameUI {
     this.toast.textContent = text;
     this.toast.classList.add('visible');
     window.clearTimeout(this.toastTimer);
-    this.toastTimer = window.setTimeout(() => this.toast.classList.remove('visible'), 3800);
+    // Long toasts stay up long enough to read.
+    this.toastTimer = window.setTimeout(() => this.toast.classList.remove('visible'), Math.max(3800, text.length * 60));
   }
 
   destroy(): void {

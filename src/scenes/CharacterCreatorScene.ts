@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { birthdayGift } from '../data/birthdayGift';
+import { giftConfig } from '../data/birthdayGift';
 import { riderAppearances } from '../data/riderAppearances';
 import type { RiderAppearanceId } from '../data/riderAppearances';
 
@@ -8,6 +8,7 @@ export class CharacterCreatorScene extends Phaser.Scene {
   private selectedIndex = 0;
   private preview!: Phaser.GameObjects.Image;
   private nameText!: Phaser.GameObjects.Text;
+  private starting = false;
 
   constructor() {
     super('CharacterCreator');
@@ -15,10 +16,11 @@ export class CharacterCreatorScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
+    this.starting = false;
     this.add.image(0, 0, 'environment-ground').setOrigin(0).setScale(2);
     this.add.rectangle(width / 2, height / 2, width, height, 0x203f31, 0.5);
     this.add.rectangle(width / 2, height / 2, 620, 458, 0x4c3828).setStrokeStyle(4, 0xc4a574);
-    this.add.text(width / 2, 80, `Create ${birthdayGift.recipient}`, {
+    this.add.text(width / 2, 80, `Create ${giftConfig.recipientName}`, {
       color: '#fff0d1', fontFamily: 'Georgia, serif', fontSize: '32px',
     }).setOrigin(0.5);
     this.add.text(width / 2, 117, 'Choose a look for the Sunmeadow trails', {
@@ -27,7 +29,7 @@ export class CharacterCreatorScene extends Phaser.Scene {
     this.add.rectangle(width / 2, 281, 350, 270, 0xeee0bd).setStrokeStyle(3, 0xa18455);
     this.add.rectangle(width / 2, 274, 328, 134, 0xd2d9b1);
     this.add.rectangle(width / 2, 333, 328, 16, 0xb7c79b);
-    this.add.text(width / 2, 177, birthdayGift.recipient.toUpperCase(), {
+    this.add.text(width / 2, 177, giftConfig.recipientName.toUpperCase(), {
       color: '#49644d', fontFamily: 'Arial, sans-serif', fontSize: '13px', letterSpacing: 2,
     }).setOrigin(0.5);
     this.preview = this.add.image(width / 2, 276, 'riders', 0).setScale(2);
@@ -37,7 +39,16 @@ export class CharacterCreatorScene extends Phaser.Scene {
     this.add.text(width / 2, 398, '←  Left / Right  →', {
       color: '#596343', fontFamily: 'Arial, sans-serif', fontSize: '14px',
     }).setOrigin(0.5);
-    this.add.rectangle(width / 2, 458, 320, 44, 0x315b4e).setStrokeStyle(2, 0x99c0a4);
+    for (const [x, direction] of [[width / 2 - 140, -1], [width / 2 + 140, 1]] as const) {
+      this.add.text(x, 276, direction < 0 ? '‹' : '›', {
+        color: '#4c3828', fontFamily: 'Georgia, serif', fontSize: '44px', padding: { x: 14, y: 4 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.select(direction));
+    }
+    const begin = this.add.rectangle(width / 2, 458, 320, 44, 0x315b4e).setStrokeStyle(2, 0x99c0a4)
+      .setInteractive({ useHandCursor: true }).setName('creator-begin');
+    begin.on('pointerover', () => begin.setFillStyle(0x42745f));
+    begin.on('pointerout', () => begin.setFillStyle(0x315b4e));
+    begin.once('pointerdown', () => this.begin());
     this.add.text(width / 2, 458, 'Enter · Begin your adventure', {
       color: '#fff0d1', fontFamily: 'Arial, sans-serif', fontSize: '17px',
     }).setOrigin(0.5);
@@ -45,11 +56,15 @@ export class CharacterCreatorScene extends Phaser.Scene {
     const keyboard = this.input.keyboard!;
     keyboard.on('keydown-LEFT', () => this.select(-1));
     keyboard.on('keydown-RIGHT', () => this.select(1));
-    keyboard.once('keydown-ENTER', () => {
-      const appearanceId: RiderAppearanceId = riderAppearances[this.selectedIndex]!.id;
-      this.scene.start('World', { appearanceId });
-    });
+    keyboard.once('keydown-ENTER', () => this.begin());
     this.updatePreview();
+  }
+
+  private begin(): void {
+    if (this.starting) return;
+    this.starting = true;
+    const appearanceId: RiderAppearanceId = riderAppearances[this.selectedIndex]!.id;
+    this.scene.start('World', { appearanceId });
   }
 
   private select(direction: number): void {

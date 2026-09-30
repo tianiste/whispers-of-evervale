@@ -13,13 +13,20 @@ export class EchoPanel {
     this.focus();
   }
 
+  /** Arbitrary panel content with one action button; `kind` adds a dialog class, e.g. for the birthday card. */
+  page(content: string, action: string, onContinue: () => void, kind = ''): void {
+    this.show(`${content}${button('echo-continue', escapeHTML(action))}`, kind);
+    this.ui.bind('echo-continue', onContinue);
+    this.focus();
+  }
+
   quiz(step: QuizStep, onSolved: (option: EchoOption) => void): void {
     const tried = new Set<number>();
     const render = (): void => {
       this.show(`<p class="echo-question">${escapeHTML(step.question)}</p><div class="echo-options">${step.options.map((option, index) =>
         `<button id="echo-option-${index}" class="${tried.has(index) ? 'tried' : ''}">${escapeHTML(option.text)}</button>`).join('')}</div>`);
       step.options.forEach((option, index) => this.ui.bind(`echo-option-${index}`, () => {
-        if (option.correct) { onSolved(option); return; }
+        if (option.correct || step.open) { onSolved(option); return; }
         tried.add(index);
         render();
         this.ui.notify(option.response ?? this.miss(wrongAnswerLines));
@@ -70,8 +77,8 @@ export class EchoPanel {
     return lines[this.misses++ % lines.length]!;
   }
 
-  private show(content: string): void {
-    this.ui.show(this.title, content, this.onClose, 'echo-panel');
+  private show(content: string, kind = ''): void {
+    this.ui.show(this.title, content, this.onClose, `echo-panel ${kind}`.trim());
   }
 
   /** Keep keyboard focus inside the panel when the focused button was replaced or disabled. */

@@ -1,24 +1,34 @@
 import Phaser from 'phaser';
+import { accessoryKey } from '../art/Accessories';
 import { EchoSites } from '../art/EchoSites';
+import { EchoTrail } from '../art/EchoTrail';
 import { renderEnvironment, addTree } from '../art/Environment';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../config/world';
+import { BoltEntity } from '../entities/BoltEntity';
 import { CatEntity } from '../entities/CatEntity';
 import { HorseEntity } from '../entities/HorseEntity';
 import { getHorse, horses, type HorseId } from '../data/horses';
 import { getRiderAppearance, riderAppearances, type RiderAppearanceId } from '../data/riderAppearances';
 import { echoClues, stableKeeperGreeting } from '../data/dialogue';
 import { GameUI, button, color, escapeHTML, type MenuPage } from '../ui/GameUI';
+import { showStyleParade } from '../ui/FashionChallenge';
 import { showHorseChoice } from '../ui/HorseChoice';
 import { activityIds, storyChapters, storyObjectives, echoStartIndex, type StoryObjective } from '../data/story';
-import { echoes, getEcho, plannedEchoes, echoTotal, type EchoDefinition, type EchoId } from '../data/echoes';
-import { birthdayFinale } from '../data/birthdayGift';
+import { echoes, getEcho, echoTotal, type EchoDefinition, type EchoId } from '../data/echoes';
+import { birthdayFinale, birthdayReturn, giftConfig } from '../data/birthdayGift';
+import { storeVolume } from '../data/settings';
+import { birthdayCardHTML } from '../ui/BirthdayCard';
 import { items, type ItemId } from '../data/items';
 import { outfits, type OutfitId } from '../data/outfits';
-import { clearingRace } from '../data/race';
+import { raceGate, raceTracks, type RaceTrack, type RaceTrackId } from '../data/race';
+import { accessories, styleParade, type AccessoryId } from '../data/fashion';
 import { decorations, stableDecorationSlots, type StableDecorationSlotId, type DecorationId } from '../data/decorations';
-import { villageCats, villagers } from '../data/village';
+import { bolt, catCompletion, scarecrow, villageCats, villagers, type AnimalId } from '../data/village';
 import { SAVE_VERSION, STORY_COMPLETE, storeGameSave, type GameSave, type SavedDialogueId } from '../data/save';
+import { tone } from '../systems/tones';
 import type { EchoSession } from './EchoScene';
+import type { GroomSession } from './GroomScene';
+import type { RaceRecord, RaceResult, RaceSession } from './RaceScene';
 
 const PLAYER_RADIUS = 14;
 const PLAYER_SPEED = 205;
@@ -34,24 +44,31 @@ const PADDOCK_HORSES: readonly { id: HorseId; x: number; y: number; flip: boolea
   { id: 'dark-bay-friesian', x: 845, y: 655, flip: true },
 ];
 const ECHO_FADE = { r: 10, g: 12, b: 24 };
+const MEADOW_FADE = { r: 16, g: 44, b: 43 };
+const STEWARD = villagers.find(({ id }) => id === 'race-steward')!;
+const JUDGE = villagers.find(({ id }) => id === 'parade-judge')!;
+const FINALE = echoes.find(echo => echo.finale)!;
+/** First objective of the finale's chapter: its trail wakes the hidden site beside the stable. */
+const FINALE_START = storyObjectives.findIndex(o => o.chapter === storyObjectives.find(e => e.type === 'echo' && e.target === FINALE.id)!.chapter);
 
 export class WorldScene extends Phaser.Scene {
   private ui!: GameUI;
-  private countdownMs = 0;
-  private countdownNumber = 0;
-  private checkpointMarkers: Phaser.GameObjects.Container[] = [];
   private cameraTarget!: Phaser.GameObjects.Zone;
   private playerArt!: Phaser.GameObjects.Image;
+  private accessoryArt!: Phaser.GameObjects.Image;
   private playerShadow!: Phaser.GameObjects.Ellipse;
   private riderDirection = 0;
   private nextDustAt = 0;
-  private wardrobeCategory: 'outfits' | 'rider' = 'outfits';
+  private wardrobeCategory: 'outfits' | 'accessories' | 'rider' = 'outfits';
   private horseCategory: 'horse' | 'tack' | 'stable' = 'horse';
+  /** Stable tab: the slot whose decoration picker is open. */
+  private pickingSlot: StableDecorationSlotId | null = null;
   private questSummary = '';
   private appearanceId: RiderAppearanceId = 'cream';
   private horseId: HorseId = 'brown-quarter-horse';
   private horseName: string | null = null;
   private outfitId: OutfitId = outfits[0].id;
+  private accessoryId: AccessoryId = 'none';
   private player!: Phaser.GameObjects.Arc;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private horse!: HorseEntity;
@@ -59,25 +76,28 @@ export class WorldScene extends Phaser.Scene {
   private mounted = false;
   private storyIndex = 0;
   private activityProgress: string[] = [];
-  private activityMarkers!: Phaser.GameObjects.Container;
+  private trail!: EchoTrail;
   private dialogueTarget: string | null = null;
   private cats: CatEntity[] = [];
+  private bolt!: BoltEntity;
+  private animals = new Set<AnimalId>();
   private paddock = new Map<HorseId, Phaser.GameObjects.Image>();
   private echoSites!: EchoSites;
   private restoredEchoes: EchoId[] = [];
   private echoProgress: GameSave['echoProgress'] = null;
-  private echoActive = false;
+  /** An Echo, race or grooming scene is running over the paused world. */
+  private overlayActive = false;
   private storyLights!: Phaser.GameObjects.Container;
   private storyMarker!: Phaser.GameObjects.Container;
+  /** Bunting, lanterns and a banner at Sunmeadow once the birthday finale has played. Kept loose, not in a container, so each keeps its depth. */
+  private birthday: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Visible)[] = [];
   private inventory = new Map<ItemId, number>();
   private decorationSelections = new Map<StableDecorationSlotId, DecorationId>(stableDecorationSlots.map(({ id, defaultDecorationId }) => [id, defaultDecorationId]));
   private decorationDisplays = new Map<StableDecorationSlotId, { marker: Phaser.GameObjects.Text; label: Phaser.GameObjects.Text }>();
   private interactionKey!: Phaser.Input.Keyboard.Key;
   private raceKey!: Phaser.Input.Keyboard.Key;
-  private raceCheckpointIndex: number | null = null;
-  private raceStartedAt = 0;
+  private raceBest = new Map<RaceTrackId, number>();
   private raceElapsedMs = 0;
-  private raceLastDisplay = -1;
   private raceResultText = '';
   private activeDialogueId: SavedDialogueId | null = null;
   private restoreSave: GameSave | null = null;
@@ -100,12 +120,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   init(data: { appearanceId?: RiderAppearanceId; save?: GameSave }): void {
-    this.countdownMs = 0;
-    this.countdownNumber = 0;
-    this.checkpointMarkers = [];
     this.cats = [];
     this.paddock = new Map();
-    this.echoActive = false;
+    this.overlayActive = false;
+    this.pickingSlot = null;
     this.nextDustAt = 0;
     const save = data.save;
     this.restoreSave = save ?? null;
@@ -113,18 +131,18 @@ export class WorldScene extends Phaser.Scene {
     this.horseId = getHorse(save?.horseId).id;
     this.horseName = save?.horseName ?? null;
     this.outfitId = save?.outfitId ?? outfits[0].id;
+    this.accessoryId = save?.accessoryId ?? 'none';
+    this.animals = new Set(save?.animals ?? []);
+    this.raceBest = new Map(Object.entries(save?.raceBest ?? {}) as [RaceTrackId, number][]);
     this.storyIndex = save?.storyIndex ?? 0;
     this.activityProgress = [...(save?.activityProgress ?? [])];
     this.dialogueTarget = save?.dialogueTarget ?? null;
     this.restoredEchoes = [...(save?.restoredEchoes ?? [])];
     this.echoProgress = save?.echoProgress ? { id: save.echoProgress.id, steps: [...save.echoProgress.steps] } : null;
-    // Explicit Echo state wins: never replay a restored Echo, and never skip past one unrecorded.
+    // Explicit Echo state wins: never replay a restored Echo (the save parser never skips an unrestored one).
     while (storyObjectives[this.storyIndex]?.type === 'echo' && this.restoredEchoes.some(id => id === storyObjectives[this.storyIndex]!.target)) {
       this.storyIndex++;
       this.activityProgress = [];
-    }
-    for (const objective of storyObjectives.slice(0, this.storyIndex)) {
-      if (objective.type === 'echo' && !this.restoredEchoes.includes(getEcho(objective.target).id)) this.restoredEchoes.push(getEcho(objective.target).id);
     }
     this.mounted = save?.mounted ?? false;
     this.inventory.clear();
@@ -136,12 +154,9 @@ export class WorldScene extends Phaser.Scene {
       id,
       save?.decorations[id] ?? defaultDecorationId,
     ]));
-    this.raceCheckpointIndex = save?.race.checkpointIndex ?? null;
-    this.raceStartedAt = 0;
     this.raceElapsedMs = save?.race.elapsedMs ?? 0;
     this.raceResultText = save?.race.resultText ?? '';
     this.activeDialogueId = save?.dialogue ?? null;
-    this.raceLastDisplay = -1;
   }
 
   create(): void {
@@ -161,10 +176,11 @@ export class WorldScene extends Phaser.Scene {
     this.playerBody.enable = !this.mounted;
     this.playerShadow = this.add.ellipse(playerX, playerY + 12, 27, 10, 0x203b32, 0.3);
     this.playerArt = this.add.image(playerX, playerY + 16, 'riders').setOrigin(0.5, 1).setScale(1.25);
+    this.accessoryArt = this.add.image(playerX, playerY + 16, 'riders').setOrigin(0.5, 1).setScale(1.25).setVisible(false);
 
     this.horse = new HorseEntity(this, getHorse(this.horseId), save?.horse.x ?? 975, save?.horse.y ?? 650);
     this.physics.add.existing(this.horse.display);
-    this.horse.setEchoTack(this.inventory.has('echo-tack'));
+    this.updateTack();
     this.horseBody = this.horse.display.body as Phaser.Physics.Arcade.Body;
     this.horseBody.setCircle(HORSE_RADIUS, -HORSE_RADIUS, -HORSE_RADIUS).setCollideWorldBounds(true);
     // Until Meet Your Horse, the horses wait in the paddock instead.
@@ -188,19 +204,14 @@ export class WorldScene extends Phaser.Scene {
       backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
     }).setOrigin(0.5).setDepth(100000);
     this.renderStableDecorations();
-    this.add.circle(clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius, 0xc8b77b, 0.18)
-      .setStrokeStyle(3, 0xf4e9cf);
-    this.add.text(clearingRace.start.x, clearingRace.start.y - clearingRace.start.radius - 18, 'Clearing Canter', {
-      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '14px',
-      backgroundColor: '#173b36cc', padding: { x: 5, y: 3 },
-    }).setOrigin(0.5).setDepth(100000);
-    clearingRace.checkpoints.forEach((checkpoint, index) => {
-      const ring = this.add.circle(0, 0, checkpoint.radius, 0x8cd4bf, 0.16).setStrokeStyle(3, 0x8cd4bf);
-      const label = this.add.text(0, 0, String(index + 1), {
-        color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '24px',
-      }).setOrigin(0.5).setDepth(100000);
-      this.checkpointMarkers.push(this.add.container(checkpoint.x, checkpoint.y, [ring, label]).setVisible(false));
-    });
+    this.renderBirthdayDecorations();
+    this.add.circle(raceGate.x, raceGate.y, raceGate.radius, 0xc8b77b, 0.18).setStrokeStyle(3, 0xf4e9cf);
+    for (const dx of [-raceGate.radius, raceGate.radius]) this.add.rectangle(raceGate.x + dx, raceGate.y - 20, 6, 44, 0xf4efe6).setDepth(raceGate.y);
+    this.add.rectangle(raceGate.x, raceGate.y - 44, raceGate.radius * 2 + 6, 14, 0x55cabb).setStrokeStyle(2, 0xf4efe6).setDepth(raceGate.y);
+    this.add.text(raceGate.x, raceGate.y - 44, 'RACE GATE', {
+      color: '#f4efe6', fontFamily: 'Arial, sans-serif', fontSize: '10px', fontStyle: 'bold', letterSpacing: 2,
+    }).setOrigin(0.5).setDepth(raceGate.y + 1);
+    this.renderScarecrow();
     const glow = this.add.image(0, 0, 'environment-glow').setTint(0x8ffff0).setScale(2).setBlendMode(Phaser.BlendModes.ADD);
     const ring = this.add.circle(0, 0, 28, 0x8cd4bf, 0.18).setStrokeStyle(3, 0xf4e9cf);
     this.storyLights = this.add.container(0, 0, [glow]);
@@ -228,13 +239,18 @@ export class WorldScene extends Phaser.Scene {
         prop.add(this.add.rectangle(0, 0, 24, 5, 0x55cabb));
         prop.add(this.add.rectangle(-6, 6, 4, 10, 0x55cabb).setAngle(20));
         prop.add(this.add.rectangle(6, 6, 4, 10, 0x55cabb).setAngle(-20));
+      } else if (objective.target === 'foil-glint') {
+        prop.add(this.add.image(0, 0, 'environment-glow').setTint(0xd8f0ff).setScale(0.45).setBlendMode(Phaser.BlendModes.ADD));
+        prop.add(this.add.polygon(0, 0, [0, 6, 8, 0, 18, 2, 22, 8, 12, 12, 2, 10], 0xdfe6ea).setStrokeStyle(1, 0x9aa3aa));
+      } else if (objective.target === 'summer-snowflake') {
+        prop.add(this.add.image(0, 0, 'environment-glow').setTint(0xbfe8ff).setScale(0.45).setBlendMode(Phaser.BlendModes.ADD));
+        prop.add(this.add.text(0, 0, '❄', { fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#ffffff' }).setOrigin(0.5));
       } else if (objective.target !== 'oak-stirring') {
         prop.add(this.add.rectangle(0, 0, 24, 18, 0xe9d7ac).setStrokeStyle(2, 0x765b40));
         prop.add(this.add.rectangle(0, 0, 14, 3, 0x508f83));
       }
     }
-    this.activityMarkers = this.add.container(0, 0).setDepth(99998);
-    this.tweens.add({ targets: this.activityMarkers, alpha: 0.55, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.trail = new EchoTrail(this);
     this.renderActivityMarkers();
     this.obstacles = [
       { x: 650, y: 380, radius: 38 },
@@ -277,13 +293,10 @@ export class WorldScene extends Phaser.Scene {
     this.updateQuestText();
     this.ambience = this.sound.add('sunmeadow-ambience', { loop: true, volume: 0.12 });
     this.ambience.play();
-    if (this.raceCheckpointIndex !== null) {
-      this.raceStartedAt = this.time.now - this.raceElapsedMs;
-      this.ui.setRace(`${clearingRace.name}: Checkpoint ${this.raceCheckpointIndex + 1}/${clearingRace.checkpoints.length} · ${(this.raceElapsedMs / 1000).toFixed(1)}s`);
-    }
     if (this.activeDialogueId) this.showDialogue(this.activeDialogueId, this.getDialogue(this.activeDialogueId));
-    this.updateCheckpointMarkers();
     this.nextAutosaveAt = this.time.now + 1000;
+    this.syncFinaleSite();
+    this.checkCatCompletion();
     window.addEventListener('pagehide', this.handlePageHide);
     this.game.events.on(Phaser.Core.Events.BLUR, this.handleBlur);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -298,33 +311,19 @@ export class WorldScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const keyboard = this.input.keyboard;
-    if (!keyboard || this.echoActive) return;
+    if (!keyboard || this.overlayActive) return;
     this.echoSites.update(this.player.x, this.player.y);
 
     if (this.ui.isOpen) {
       this.playerBody.setVelocity(0, 0);
       this.horseBody.setVelocity(0, 0);
-      if (this.raceCheckpointIndex !== null) this.raceStartedAt = this.time.now - this.raceElapsedMs;
-      return;
-    }
-    if (this.countdownMs > 0) {
-      this.interactionKey.reset();
-      this.raceKey.reset();
-      this.playerBody.setVelocity(0, 0);
-      this.horseBody.setVelocity(0, 0);
-      this.countdownMs = Math.max(0, this.countdownMs - delta);
-      const number = Math.ceil(this.countdownMs / 1000);
-      if (number !== this.countdownNumber) {
-        this.countdownNumber = number;
-        this.ui.setCountdown(number ? String(number) : 'GO!');
-        this.feedbackTone(number ? 440 : 660);
-      }
-      if (!this.countdownMs) this.beginRace();
       return;
     }
     for (const cat of this.cats) cat.update(this.time.now, this.player);
+    this.bolt.update(this.time.now, this.player);
+    this.trail.update(this.time.now, this.mounted ? this.horse.display : this.player);
     this.updatePrompt();
-    if (Phaser.Input.Keyboard.JustDown(this.raceKey)) this.tryStartRace();
+    if (Phaser.Input.Keyboard.JustDown(this.raceKey) && this.nearRaceGate()) this.openRaceMenu();
     if (this.ui.isOpen) return;
 
     const up = this.movementKeys.up.isDown || this.movementKeys.upArrow.isDown;
@@ -343,12 +342,11 @@ export class WorldScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.interactionKey)) {
       const cat = this.nearbyCat();
       const horseReady = this.horseName !== null;
-      if (this.mounted) {
-        this.tryDismount();
-
-      }
-      else if (this.interactEcho() || this.interactHorseChoice() || this.inspectStoryObject() || this.interactStoryActor()) {}
+      if (this.nearRaceGate()) this.openRaceMenu();
+      else if (this.mounted) this.tryDismount();
+      else if (this.interactEcho() || this.interactHorseChoice() || this.inspectStoryObject() || this.interactStoryActor() || this.interactJudge()) {}
       else if (horseReady && this.isNear(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y, 35)) this.mountHorse();
+      else if (this.nearBolt()) this.petBolt();
       else if (cat) this.petCat(cat);
       else if (this.isNear(this.player.x, this.player.y, KEEPER_POSITION.x, KEEPER_POSITION.y, INTERACTION_RANGE)) {
         const clue = this.storyIndex >= echoStartIndex;
@@ -388,6 +386,12 @@ export class WorldScene extends Phaser.Scene {
     this.playerArt.setFrame(this.mounted ? mountedFrame : riderFrame).setPosition(this.player.x, this.player.y + (this.mounted ? 28 : 16) + (!this.mounted && body.speed > 30 ? Math.round(Math.sin(this.time.now / 100)) : 0));
     this.playerArt.setTint(this.outfitId === 'birthday-teal' ? 0x9dffe2 : 0xffffff);
     this.playerArt.setDepth((this.mounted ? this.horse.display.y + 29 : this.player.y + 16));
+    this.accessoryArt.setVisible(this.accessoryId !== 'none');
+    if (this.accessoryId !== 'none') {
+      // Frames facing left are pre-flipped in the rider sheet, so the overlay flips to match.
+      this.accessoryArt.setTexture(accessoryKey(this.accessoryId)).setPosition(this.playerArt.x, this.playerArt.y)
+        .setFlipX(this.mounted ? this.horse.facing < 0 : this.riderDirection === 3).setDepth(this.playerArt.depth + 0.5);
+    }
     this.playerShadow.setPosition(this.player.x, this.player.y + 12).setDepth(this.player.y - 1).setVisible(!this.mounted);
     this.horse.animate(this.time.now, this.horseBody.speed);
     const target = this.mounted ? this.horse.display : this.player;
@@ -395,7 +399,6 @@ export class WorldScene extends Phaser.Scene {
     const cameraBlend = 1 - Math.exp(-6 * Math.min(delta, 50) / 1000);
     this.cameras.main.setLerp(cameraBlend, cameraBlend);
     this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.mounted ? 0.94 : 1, cameraBlend));
-    this.updateRace();
     if (this.time.now >= this.nextAutosaveAt) {
       this.persistGame();
       this.nextAutosaveAt = this.time.now + 1000;
@@ -403,16 +406,17 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private openMenu(page: MenuPage): void {
-    if (this.activeDialogueId || this.echoActive) return;
+    if (this.activeDialogueId || this.overlayActive) return;
     this.playerBody.setVelocity(0, 0);
     this.horseBody.setVelocity(0, 0);
     const back = button('back-menu', '← Menu');
     if (page === 'pause') {
-      this.ui.show('A moment in Sunmeadow', `<div class="menu-grid">${button('inventory', 'Satchel · I')}${button('wardrobe', 'Wardrobe · O')}${button('horse', 'Horse & stable · H')}${button('journal', 'Quest journal · J')}</div><p class="muted">WASD / arrows to move · E to interact · R at the race gate</p><label class="settings">Sound <input id="volume" type="range" min="0" max="100" value="${Math.round(this.sound.volume * 100)}"></label>${button('resume', 'Return to the meadow')}`);
+      this.ui.show('A moment in Sunmeadow', `<div class="menu-grid">${button('inventory', 'Satchel · I')}${button('wardrobe', 'Wardrobe · O')}${button('horse', 'Horse & stable · H')}${button('journal', 'Quest journal · J')}</div><p class="muted">WASD / arrows to move · E to talk, look, pet and ride</p><label class="settings">Sound <input id="volume" type="range" min="0" max="100" value="${Math.round(this.sound.volume * 100)}"></label>${button('resume', 'Return to the meadow')}`);
       for (const name of ['inventory', 'wardrobe', 'horse', 'journal'] as const) this.ui.bind(name, () => this.openMenu(name));
       this.ui.bind('resume', () => this.ui.close());
       this.ui.dialog.querySelector<HTMLInputElement>('#volume')!.oninput = (event) => {
         this.sound.volume = Number((event.target as HTMLInputElement).value) / 100;
+        storeVolume(this.sound.volume);
       };
     } else if (page === 'inventory') {
       const owned = items.filter(({ id }) => (this.inventory.get(id) ?? 0) > 0);
@@ -420,11 +424,21 @@ export class WorldScene extends Phaser.Scene {
     } else if (page === 'wardrobe') {
       const outfit = outfits.find(({ id }) => id === this.outfitId)!;
       const appearance = getRiderAppearance(this.appearanceId);
-      const choices = this.wardrobeCategory === 'outfits' ? outfits.filter(item => (item.id !== 'berry' || this.inventory.has('berry-gift') || this.outfitId === 'berry') && (item.id !== 'birthday-teal' || this.inventory.has('echo-tack'))) : riderAppearances;
+      const choices = this.wardrobeCategory === 'outfits' ? outfits.filter(item => this.ownedOutfits().includes(item.id)) : this.wardrobeCategory === 'rider' ? riderAppearances : [];
       const selected = this.wardrobeCategory === 'outfits' ? this.outfitId : this.appearanceId;
-      this.ui.show('Your wardrobe', `<div class="tabs">${button('outfits-tab', 'Outfits', this.wardrobeCategory === 'outfits')}${button('rider-tab', 'Rider', this.wardrobeCategory === 'rider')}</div><div class="split"><div class="preview"><img class="rider-preview" style="${this.outfitId === 'birthday-teal' ? 'filter:hue-rotate(-25deg)' : ''}" src="/assets/art/rider-${appearance.id}-${outfit.preview}.png" alt="${appearance.name} rider in ${outfit.name} outfit"><div>${outfit.name}<br><small>YOUR CURRENT LOOK</small></div></div><div class="choices">${choices.map((item) => `<button class="item-choice" id="equip-${item.id}" aria-pressed="${selected === item.id}"><span class="swatch" style="--outfit:${color(this.wardrobeCategory === 'outfits' ? item.color : outfit.color)};--rider:${color(this.wardrobeCategory === 'rider' ? item.color : appearance.color)}"></span><span>${item.name}<br><small>${selected === item.id ? 'Equipped ✓' : 'Wear this look'}</small></span></button>`).join('')}</div></div><p class="muted">Meadow and Sky are yours. Visit the bakery for Berry.</p>${back}`);
-      this.ui.bind('outfits-tab', () => { this.wardrobeCategory = 'outfits'; this.openMenu('wardrobe'); });
-      this.ui.bind('rider-tab', () => { this.wardrobeCategory = 'rider'; this.openMenu('wardrobe'); });
+      const accessoryChoices = this.wardrobeCategory === 'accessories' ? this.ownedAccessories().map(id => {
+        const item = accessories.find(accessory => accessory.id === id)!;
+        return `<button class="item-choice" id="wear-${id}" aria-pressed="${this.accessoryId === id}"><span class="accessory-swatch">${this.riderPreview(id)}</span><span>${item.name}<br><small>${this.accessoryId === id ? 'Wearing ✓' : 'Wear this'}</small></span></button>`;
+      }).join('') : '';
+      const tabs = [['outfits', 'Outfits'], ['accessories', 'Accessories'], ['rider', 'Rider']] as const;
+      this.ui.show('Your wardrobe', `<div class="tabs">${tabs.map(([id, label]) => button(`${id}-tab`, label, this.wardrobeCategory === id)).join('')}</div><div class="split"><div class="preview">${this.riderPreview()}<div>${outfit.name}<br><small>YOUR CURRENT LOOK</small></div></div><div class="choices">${accessoryChoices}${choices.map((item) => `<button class="item-choice" id="equip-${item.id}" aria-pressed="${selected === item.id}"><span class="swatch" style="--outfit:${color(this.wardrobeCategory === 'outfits' ? item.color : outfit.color)};--rider:${color(this.wardrobeCategory === 'rider' ? item.color : appearance.color)}"></span><span>${item.name}<br><small>${selected === item.id ? 'Equipped ✓' : 'Wear this look'}</small></span></button>`).join('')}</div></div><p class="muted">${this.wardrobeCategory === 'accessories' ? 'Hats and scarves mix with any outfit. Madame Rosette approves of most of them.' : 'Meadow and Sky are yours. Visit the bakery for Berry.'}</p>${back}`);
+      for (const [id] of tabs) this.ui.bind(`${id}-tab`, () => { this.wardrobeCategory = id; this.openMenu('wardrobe'); });
+      for (const id of this.ownedAccessories()) this.ui.bind(`wear-${id}`, () => {
+        this.accessoryId = id;
+        this.persistGame();
+        this.openMenu('wardrobe');
+        this.ui.notify(id === 'none' ? 'Accessory off' : `${accessories.find(accessory => accessory.id === id)?.name} on`);
+      });
       for (const item of choices) this.ui.bind(`equip-${item.id}`, () => {
         if (this.wardrobeCategory === 'outfits') this.outfitId = (outfits.find(({ id }) => id === item.id) ?? outfits[0]).id;
         else this.appearanceId = (riderAppearances.find(({ id }) => id === item.id) ?? riderAppearances[0]).id;
@@ -439,35 +453,55 @@ export class WorldScene extends Phaser.Scene {
       const horse = getHorse(this.horseId);
       const name = escapeHTML(this.horseLabel);
       let content = this.horseName === null
-        ? '<h2>No horse yet</h2><p>Three horses are waiting at the paddock northeast of the stable. Go and say hello.</p>'
+        ? '<h2>No horse yet</h2><p>Three horses are waiting by the paddock fence south of the stable. Go and say hello.</p>'
         : `<div class="split"><div class="preview"><img class="horse-art" src="/assets/art/horse-${horse.id}.png" alt="${name} with teal saddle blanket and leather tack"><small>ACTIVE HORSE ✓</small></div><div><h2>${name}</h2><p>${horse.breed} · ${horse.coat}</p><p class="muted">Your companion in Sunmeadow.<br>${this.mounted ? 'You are riding together.' : 'Approach your horse and press E to ride.'}</p><p>Owned horses · 1</p></div></div>`;
       if (this.horseCategory === 'horse' && this.horseName !== null) {
         const caring = storyObjectives[this.storyIndex]?.type === 'care';
-        content += `<p>A brush, fresh water and a little treat. No supplies needed.</p><div class="tabs">${['brush', 'water', 'treat'].map(action => button(`care-${action}`, action[0]!.toUpperCase() + action.slice(1) + (caring && this.activityProgress.includes(action) ? ' ✓' : ''))).join('')}</div>`;
+        const labels: Record<string, string> = { brush: 'Brush · groom', water: 'Water', treat: 'Treat' };
+        content += `<p>A good brush, fresh water and a little treat. No supplies needed.</p><div class="tabs">${['brush', 'water', 'treat'].map(action => button(`care-${action}`, labels[action]! + (caring && this.activityProgress.includes(action) ? ' ✓' : ''))).join('')}</div>`;
         if (this.storyIndex === storyObjectives.length || storyObjectives[this.storyIndex]?.type === 'race') content += button('return-home', this.storyIndex === storyObjectives.length ? 'Return to Sunmeadow' : 'Return to the race gate');
       }
-      if (this.horseCategory === 'tack') content = this.inventory.has('echo-tack') ? '<h2>Birthday bridle ribbon · Fitted ✓</h2><p>A little teal light to take on every ride. Your birthday ribbon is fitted beside the bridle.</p>' : '<h2>A simple ride</h2><p>A leather saddle and teal blanket are fitted for your ride.</p>';
-      if (this.horseCategory === 'stable') content = stableDecorationSlots.map((slot) => `<div class="item-row"><span>${slot.name}</span>${button(`decorate-${slot.id}`, decorations.find(({ id }) => id === this.decorationSelections.get(slot.id))!.name + ' · Change')}</div>`).join('');
+      if (this.horseCategory === 'tack') {
+        content = '<div class="item-row"><span class="item-icon" aria-hidden="true">●</span>Leather saddle and teal blanket<strong>Fitted ✓</strong></div>';
+        if (this.inventory.has('forest-rosette')) content += '<div class="item-row"><span class="item-icon" aria-hidden="true">✿</span>Forest Run rosette, pinned to the bridle<strong>Fitted ✓</strong></div>';
+        if (this.inventory.has('echo-tack')) content += '<div class="item-row"><span class="item-icon" aria-hidden="true" style="color:#55cabb">◆</span>Teal &amp; oak birthday tack: ribbon bridle, teal saddle pad, oak-bead breastplate<strong>Fitted ✓</strong></div>';
+        content += '<p class="muted">Race rewards and keepsakes are fitted automatically.</p>';
+      }
+      if (this.horseCategory === 'stable') {
+        const slot = stableDecorationSlots.find(({ id }) => id === this.pickingSlot);
+        content = slot
+          ? `<h2>${slot.name} · choose a decoration</h2><div class="choices decor-choices">${this.availableDecorations().map(({ id, name, symbol, color: tint }) => `<button class="item-choice" id="place-${slot.id}-${id}" aria-pressed="${this.decorationSelections.get(slot.id) === id}"><span class="item-icon" style="color:${tint}" aria-hidden="true">${symbol}</span><span>${escapeHTML(name)}</span></button>`).join('')}</div>${button('picker-back', '← All slots')}`
+          : stableDecorationSlots.map((candidate) => `<div class="item-row"><span>${candidate.name}</span><span class="muted">${decorations.find(({ id }) => id === this.decorationSelections.get(candidate.id))!.name}</span>${button(`decorate-${candidate.id}`, 'Change')}</div>`).join('');
+      }
       this.ui.show('Horse & stable', `<div class="tabs">${button('horse-tab', 'Your horse', this.horseCategory === 'horse')}${button('tack-tab', 'Tack', this.horseCategory === 'tack')}${button('stable-tab', 'Stable', this.horseCategory === 'stable')}</div>${content}<br>${back}`);
-      for (const category of ['horse', 'tack', 'stable'] as const) this.ui.bind(`${category}-tab`, () => { this.horseCategory = category; this.openMenu('horse'); });
+      for (const category of ['horse', 'tack', 'stable'] as const) this.ui.bind(`${category}-tab`, () => { this.horseCategory = category; this.pickingSlot = null; this.openMenu('horse'); });
       for (const action of ['brush', 'water', 'treat']) this.ui.bind(`care-${action}`, () => {
         if (this.mounted || !this.isNear(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y, 100)) {
           this.ui.notify('Dismount beside your horse to take care of them.');
           return;
         }
+        if (action === 'brush') { this.ui.close(); this.startGrooming(); return; }
         if (storyObjectives[this.storyIndex]?.type === 'care') this.completeActivityPoint(action);
         this.openMenu('horse');
         this.ui.notify({ brush: 'A glossy coat and a satisfied ear flick.', water: 'Fresh water. Your horse takes a long, happy drink.', treat: 'The treat disappears. The hopeful look remains.' }[action]!);
       });
       this.ui.bind('return-home', () => {
-        if (this.raceCheckpointIndex !== null) { this.ui.notify('Finish or leave the race first.'); return; }
         this.horseBody.reset(975, 650);
         this.playerBody.reset(this.mounted ? 975 : 925, this.mounted ? 623 : 650);
         this.cameras.main.centerOn(975, 650);
         this.persistGame();
         this.ui.close();
       });
-      for (const slot of stableDecorationSlots) this.ui.bind(`decorate-${slot.id}`, () => { this.cycleDecoration(slot.id); this.openMenu('horse'); this.ui.notify(`${slot.name} decoration changed`); });
+      for (const slot of stableDecorationSlots) {
+        this.ui.bind(`decorate-${slot.id}`, () => { this.pickingSlot = slot.id; this.openMenu('horse'); });
+        for (const decoration of this.availableDecorations()) this.ui.bind(`place-${slot.id}-${decoration.id}`, () => {
+          this.placeDecoration(slot.id, decoration.id);
+          this.pickingSlot = null;
+          this.openMenu('horse');
+          this.ui.notify(`${decoration.name} · ${slot.name}`);
+        });
+      }
+      this.ui.bind('picker-back', () => { this.pickingSlot = null; this.openMenu('horse'); });
     } else {
       let offset = 0;
       const chapters = storyChapters.map(quest => {
@@ -476,9 +510,15 @@ export class WorldScene extends Phaser.Scene {
         if (start > this.storyIndex) return '';
         return `<h2>${escapeHTML(quest.name)}${offset <= this.storyIndex ? ' · Complete ✓' : ''}</h2><ol class="quest-list">${quest.objectives.map((objective, i) => `<li class="${start + i === this.storyIndex ? 'current' : ''}">${start + i < this.storyIndex ? '✓ ' : ''}${escapeHTML(objective.description)}${start + i < this.storyIndex && objective.payoff ? `<p class="muted">${escapeHTML(objective.payoff)}</p>` : ''}</li>`).join('')}</ol>`;
       }).join('');
-      this.ui.show('Your journal', `${this.echoJournal()}${chapters}${this.raceResultText ? `<p>${escapeHTML(this.raceResultText)}</p>` : ''}${back}`);
+      const bests = raceTracks.filter(({ id }) => this.raceBest.has(id)).map(({ id, name }) => `${name} ${(this.raceBest.get(id)! / 1000).toFixed(1)}s`).join(' · ');
+      const card = this.restoredEchoes.includes(FINALE.id) ? button('birthday-card', 'Read your birthday card') : '';
+      this.ui.show('Your journal', `${card}${this.echoJournal()}${chapters}${this.animalJournal()}${bests ? `<h2>Best times</h2><p>${escapeHTML(bests)}</p>` : ''}${this.raceResultText ? `<p class="muted">Last race · ${escapeHTML(this.raceResultText)}</p>` : ''}${back}`);
     }
     this.ui.bind('back-menu', () => this.openMenu('pause'));
+    this.ui.bind('birthday-card', () => {
+      this.ui.show(birthdayFinale.speaker, `${birthdayCardHTML()}${button('card-back', '← Journal')}`, undefined, 'birthday');
+      this.ui.bind('card-back', () => this.openMenu('journal'));
+    });
   }
 
   private showShop(): void {
@@ -496,8 +536,10 @@ export class WorldScene extends Phaser.Scene {
     const cat = this.nearbyCat();
     const horseReady = this.horseName !== null;
     let text = '';
-    if (this.mounted) text = this.isNear(this.horse.display.x, this.horse.display.y, clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius) && this.raceCheckpointIndex === null ? 'R · Enter Clearing Canter    E · Dismount' : `Riding ${this.horseLabel} · E to dismount`;
+    if (this.nearRaceGate()) text = 'E · Talk to the Race Steward';
+    else if (this.mounted) text = `Riding ${this.horseLabel} · E to dismount`;
     else if (horseReady && this.isNear(x, y, this.horse.display.x, this.horse.display.y, 35)) text = `E · Ride ${this.horseLabel}`;
+    else if (this.nearBolt()) text = `E · Pet ${bolt.name}`;
     else if (cat) text = `E · Pet ${cat.definition.name}`;
     else if (this.isNear(x, y, KEEPER_POSITION.x, KEEPER_POSITION.y, INTERACTION_RANGE)) text = 'E · Talk to the Stable Keeper';
     else {
@@ -512,6 +554,7 @@ export class WorldScene extends Phaser.Scene {
     if (objective?.type === 'echo' && atObjective(QUEST_INTERACTION_RANGE + 18)) text = 'E · Step into the Echo';
     if (objective?.type === 'choose-horse' && atObjective(INTERACTION_RANGE + 30)) text = 'E · Meet the horses';
     if (objective?.type === 'talk' && atObjective(INTERACTION_RANGE)) text = 'E · Talk';
+    if (objective?.type === 'fashion' && atObjective(INTERACTION_RANGE)) text = 'E · Enter the Style Parade';
     const storyCat = objective?.type === 'cat' ? this.cats.find(c => c.definition.id === objective.target) : undefined;
     if (!this.mounted && storyCat && this.isNear(x, y, storyCat.x, storyCat.y, CAT_RANGE)) text = `E · Pet ${storyCat.definition.name}`;
     this.ui.setPrompt(text);
@@ -529,7 +572,40 @@ export class WorldScene extends Phaser.Scene {
   private petCat(cat: CatEntity): void {
     this.ui.notify(cat.pet(this.time.now, this.player));
     this.feedbackTone(330);
+    this.discover(cat.definition.id);
     this.advanceStory('cat', cat.definition.id);
+  }
+
+  private nearBolt(): boolean {
+    return this.bolt.display.visible && this.isNear(this.player.x, this.player.y, this.bolt.x, this.bolt.y, CAT_RANGE + 10);
+  }
+
+  private petBolt(): void {
+    this.ui.notify(this.bolt.pet(this.time.now, this.player));
+    this.feedbackTone(392);
+    this.discover(bolt.id);
+    this.advanceStory('pet', bolt.id);
+  }
+
+  private discover(id: AnimalId): void {
+    if (this.animals.has(id)) return;
+    this.animals.add(id);
+    this.checkCatCompletion();
+    this.persistGame();
+  }
+
+  /** The optional all-cats reward; also grants it to saves that met every cat before it existed. */
+  private checkCatCompletion(): void {
+    if (this.inventory.has(catCompletion.reward) || !villageCats.every(({ id }) => this.animals.has(id))) return;
+    this.addItem(catCompletion.reward);
+    this.ui.notify(catCompletion.line);
+  }
+
+  private animalJournal(): string {
+    const known = [...villageCats, bolt].filter(({ id }) => this.animals.has(id));
+    const unknown = villageCats.length - villageCats.filter(({ id }) => this.animals.has(id)).length;
+    if (!known.length) return '';
+    return `<h2>Animal friends</h2><ul class="quest-list animal-list">${known.map(({ name, note }) => `<li><strong>${name}</strong> · ${escapeHTML(note)}</li>`).join('')}${unknown ? `<li class="muted">${unknown} more cat${unknown === 1 ? '' : 's'} to meet</li>` : `<li><strong>${catCompletion.note}</strong></li>`}</ul>`;
   }
 
   private isNear(x: number, y: number, targetX: number, targetY: number, range: number): boolean {
@@ -553,6 +629,14 @@ export class WorldScene extends Phaser.Scene {
     return true;
   }
 
+  /** Madame Rosette: the Style Parade while it is the current objective, otherwise a word of fashion advice. */
+  private interactJudge(): boolean {
+    if (!this.isNear(this.player.x, this.player.y, JUDGE.x, JUDGE.y, INTERACTION_RANGE)) return false;
+    if (storyObjectives[this.storyIndex]?.type === 'fashion') this.openStyleParade();
+    else this.showDialogue(JUDGE.id, this.getDialogue(JUDGE.id));
+    return true;
+  }
+
   private talkToNearbyVillager(): boolean {
     const villager = villagers.find(({ x, y }) => this.isNear(this.player.x, this.player.y, x, y, INTERACTION_RANGE));
     if (!villager) return false;
@@ -561,7 +645,7 @@ export class WorldScene extends Phaser.Scene {
     return true;
   }
 
-  private showDialogue(id: SavedDialogueId, dialogue: { speaker: string; message: string }): void {
+  private showDialogue(id: SavedDialogueId, dialogue: { speaker: string; message: string }, afterClose?: () => void): void {
     this.activeDialogueId = id;
     this.dialogueTarget ??= storyObjectives[this.storyIndex - 1]?.id ?? null;
     this.playerBody.setVelocity(0, 0);
@@ -570,6 +654,7 @@ export class WorldScene extends Phaser.Scene {
       this.activeDialogueId = null;
       this.dialogueTarget = null;
       this.persistGame();
+      afterClose?.();
     }, 'dialogue');
     this.ui.bind('continue-dialogue', () => this.ui.close());
     this.ui.bind('browse-shop', () => { this.ui.close(); this.showShop(); });
@@ -585,7 +670,7 @@ export class WorldScene extends Phaser.Scene {
       return { speaker, message: previous.payoff };
     }
     if (id === 'stable-keeper-greeting') return stableKeeperGreeting;
-    if (id === 'echo-keeper-clue') return echoClues['stable-keeper'];
+    if (id === 'echo-keeper-clue') return this.restoredEchoes.includes(FINALE.id) ? { speaker: stableKeeperGreeting.speaker, message: birthdayReturn.keeper } : echoClues['stable-keeper'];
     if (id === 'echo-guide-clue') return echoClues['trail-guide'];
     if (id === 'birthday-finale') return birthdayFinale;
     if (id === 'story-inspect') return { speaker: 'A little discovery', message: previous?.payoff ?? 'The trail continues.' };
@@ -596,7 +681,7 @@ export class WorldScene extends Phaser.Scene {
 
   private renderVillage(): void {
     for (const villager of villagers) {
-      this.add.image(villager.x, villager.y + 16, 'riders', villager.id === 'village-baker' ? 4 : 12).setOrigin(0.5, 1).setScale(1.25).setDepth(villager.y + 16);
+      this.add.image(villager.x, villager.y + 16, 'riders', villager.frame).setOrigin(0.5, 1).setScale(1.25).setDepth(villager.y + 16);
       this.add.text(villager.x, villager.y - 51, villager.name, {
         color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '12px',
         backgroundColor: '#173b36cc', padding: { x: 4, y: 2 },
@@ -604,6 +689,24 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.cats = villageCats.map(cat => new CatEntity(this, cat));
+    this.bolt = new BoltEntity(this);
+    this.bolt.setVisible(this.restoredEchoes.includes('first-winter'));
+  }
+
+  /** The parade scarecrow, dressed badly on purpose: mismatched patches and a hat that has given up. */
+  private renderScarecrow(): void {
+    const { x, y } = scarecrow;
+    const figure = this.add.container(x, y).setDepth(y + 20);
+    figure.add([
+      this.add.rectangle(0, 0, 4, 46, 0x6e4a2e), this.add.rectangle(0, -26, 40, 4, 0x6e4a2e),
+      this.add.rectangle(0, -18, 22, 22, 0xd0654d), this.add.rectangle(-5, -14, 8, 8, 0x8fbf3a), this.add.rectangle(6, -22, 6, 6, 0xc07bff),
+      this.add.circle(0, -36, 8, 0xe8d6a0), this.add.rectangle(0, -45, 22, 4, 0x3a8f3a).setAngle(-14), this.add.rectangle(-3, -50, 10, 8, 0xffd86a).setAngle(-14),
+      this.add.rectangle(-18, -24, 6, 3, 0xd8b04a), this.add.rectangle(18, -24, 6, 3, 0xd8b04a),
+    ]);
+    this.tweens.add({ targets: figure, angle: { from: -2, to: 2 }, duration: 2400, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.add.text(x, y - 70, 'Style Parade', {
+      color: '#f4e9cf', fontFamily: 'Arial, sans-serif', fontSize: '12px', backgroundColor: '#173b36cc', padding: { x: 4, y: 2 },
+    }).setOrigin(0.5).setDepth(100000);
   }
 
   private renderPaddock(): void {
@@ -649,36 +752,47 @@ export class WorldScene extends Phaser.Scene {
     return true;
   }
 
-  private enterEcho(echo: EchoDefinition): void {
-    if (this.echoProgress?.id !== echo.id) this.echoProgress = { id: echo.id, steps: [] };
-    const progress = this.echoProgress;
-    this.echoActive = true;
+  /** Fades out and runs an Echo, race or grooming scene over the paused world. */
+  private launchOverlay(key: 'Echo' | 'Race' | 'Groom', data: EchoSession | RaceSession | GroomSession, fade = MEADOW_FADE): void {
+    this.overlayActive = true;
     this.playerBody.setVelocity(0, 0);
     this.horseBody.setVelocity(0, 0);
     this.ui.setPrompt('');
+    this.ui.setHudHidden(true);
     this.persistGame();
-    this.feedbackTone(720);
-    this.cameras.main.flash(260, 190, 255, 240);
-    this.cameras.main.fadeOut(600, ECHO_FADE.r, ECHO_FADE.g, ECHO_FADE.b);
+    this.cameras.main.fadeOut(key === 'Echo' ? 600 : 450, fade.r, fade.g, fade.b);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      const session: EchoSession = {
-        echo,
-        ui: this.ui,
-        solvedSteps: [...progress.steps],
-        restoredBefore: this.restoredEchoes.length,
-        onStep: (stepId) => { if (!progress.steps.includes(stepId)) progress.steps.push(stepId); this.persistGame(); },
-        onFinish: (restored) => this.leaveEcho(echo, restored),
-      };
-      this.scene.launch('Echo', session);
+      this.scene.launch(key, data);
       this.scene.pause();
     });
   }
 
-  private leaveEcho(echo: EchoDefinition, restored: boolean): void {
+  private returnFromOverlay(fade = MEADOW_FADE): void {
     this.scene.resume();
-    this.echoActive = false;
+    this.overlayActive = false;
     this.input.keyboard?.resetKeys();
-    this.cameras.main.fadeIn(700, ECHO_FADE.r, ECHO_FADE.g, ECHO_FADE.b);
+    this.ui.setHudHidden(false);
+    this.cameras.main.fadeIn(600, fade.r, fade.g, fade.b);
+  }
+
+  private enterEcho(echo: EchoDefinition): void {
+    if (this.echoProgress?.id !== echo.id) this.echoProgress = { id: echo.id, steps: [] };
+    const progress = this.echoProgress;
+    this.feedbackTone(720);
+    this.cameras.main.flash(260, 190, 255, 240);
+    this.launchOverlay('Echo', {
+      echo,
+      ui: this.ui,
+      solvedSteps: [...progress.steps],
+      restoredBefore: this.restoredEchoes.length,
+      horse: { horseFrame: horses.findIndex(({ id }) => id === this.horseId) * 4, horseName: this.horseLabel },
+      onStep: (stepId) => { if (!progress.steps.includes(stepId)) progress.steps.push(stepId); this.persistGame(); },
+      onFinish: (restored) => this.leaveEcho(echo, restored),
+    }, ECHO_FADE);
+  }
+
+  private leaveEcho(echo: EchoDefinition, restored: boolean): void {
+    this.returnFromOverlay(ECHO_FADE);
     if (!restored) {
       this.ui.notify('The Echo waits. It remembers where you left off.');
       this.persistGame();
@@ -688,8 +802,54 @@ export class WorldScene extends Phaser.Scene {
     if (!this.restoredEchoes.includes(echo.id)) this.restoredEchoes.push(echo.id);
     this.echoSites.markRestored(echo.id);
     this.addItem(echo.reward);
+    for (const gift of echo.gifts ?? []) this.addItem(gift);
+    if (echo.id === 'first-winter') this.bolt.setVisible(true);
+    if (echo.finale) this.celebrateBirthday();
     this.advanceStory('echo', echo.id);
-    this.showDialogue('echo-reflection', { speaker: 'Hana', message: echo.reflection });
+    this.showDialogue('echo-reflection', { speaker: 'Hana', message: echo.reflection }, echo.finale ? () => {
+      this.ui.notify(this.horseName === 'Sky' ? `${birthdayReturn.toast}\n${birthdayReturn.sky}` : birthdayReturn.toast);
+    } : undefined);
+  }
+
+  /** Wakes the finale's hidden site once its chapter begins. */
+  private syncFinaleSite(): void {
+    if (this.storyIndex >= FINALE_START || this.restoredEchoes.includes(FINALE.id)) this.echoSites.wake(FINALE.id);
+  }
+
+  private renderBirthdayDecorations(): void {
+    const { x, y } = KEEPER_POSITION;
+    this.birthday = [];
+    const colors = [0x55cabb, 0xf4efe6, 0xe8c14a];
+    const bunting = this.add.graphics().setDepth(497);
+    const points = Array.from({ length: 12 }, (_, i) => ({ x: x - 132 + i * 24, y: y - 152 + Math.sin(i / 11 * Math.PI) * 14 }));
+    bunting.lineStyle(1, 0x5a3a24).strokePoints(points);
+    points.slice(0, -1).forEach((point, i) => bunting.fillStyle(colors[i % 3]!).fillTriangle(point.x + 4, point.y, point.x + 20, point.y + 1, point.x + 12, point.y + 14));
+    this.birthday.push(bunting);
+    for (const [lx, ly] of [[x - 148, y - 80], [x + 148, y - 120]] as const) {
+      const light = this.add.image(lx, ly, 'environment-glow').setTint(0xffd8a0).setScale(0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(ly + 1);
+      this.tweens.add({ targets: light, alpha: 0.5, duration: 1400, yoyo: true, repeat: -1 });
+      this.birthday.push(this.add.rectangle(lx, ly - 12, 2, 10, 0x5a3a24).setDepth(ly), this.add.ellipse(lx, ly, 14, 16, 0x55cabb).setStrokeStyle(1, 0xf4efe6).setDepth(ly), light);
+    }
+    // A cloth banner over the stable door, under the bunting.
+    const banner = this.add.container(x, y - 124).setDepth(498);
+    banner.add([
+      this.add.rectangle(0, 0, 136, 18, 0xf4efe6).setStrokeStyle(2, 0x3f9a8c),
+      this.add.text(0, 0, `Happy birthday, ${giftConfig.recipientName}`, { color: '#255b4c', fontFamily: 'Georgia, serif', fontSize: '11px' }).setOrigin(0.5),
+    ]);
+    this.birthday.push(banner);
+    for (let i = 0; i < 10; i++) {
+      const mote = this.add.rectangle(x - 140 + (i * 67) % 280, y - 150 + (i * 43) % 150, 3, 3, colors[i % 3]!).setDepth(2000);
+      this.tweens.add({ targets: mote, y: mote.y + 16, alpha: 0.3, duration: 1800 + i * 150, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      this.birthday.push(mote);
+    }
+    const shown = this.restoredEchoes.includes(FINALE.id);
+    for (const item of this.birthday) item.setVisible(shown);
+  }
+
+  private celebrateBirthday(): void {
+    for (const item of this.birthday) item.setVisible(true);
+    this.feedbackTone(660);
+    this.time.delayedCall(160, () => this.feedbackTone(880));
   }
 
   private echoJournal(): string {
@@ -698,18 +858,17 @@ export class WorldScene extends Phaser.Scene {
       ...echoes.map(echo => restored.includes(echo)
         ? `<li><strong>Echo ${echo.numeral} · ${escapeHTML(echo.title)} ✓</strong><p class="muted">${escapeHTML(echo.completion.join(' '))}</p></li>`
         : `<li>Echo ${echo.numeral} · ???</li>`),
-      ...plannedEchoes.map(echo => `<li>Echo ${echo.numeral} · ???</li>`),
     ];
     return `<h2>Echoes · ${restored.length} of ${echoTotal} restored</h2><ol class="quest-list echo-list">${entries.join('')}</ol>`;
   }
 
   private checkStoryObjective(): void {
     const objective = storyObjectives[this.storyIndex];
-    if (objective?.type === 'trail' && this.mounted && this.raceCheckpointIndex === null) {
+    if (objective?.type === 'trail' && this.mounted) {
       const point = objective.points?.[this.activityProgress.length];
       if (point && this.isNear(this.horse.display.x, this.horse.display.y, point.x, point.y, 100)) this.completeActivityPoint(point.id);
     }
-    if (objective?.type === 'ride' && this.mounted && this.raceCheckpointIndex === null &&
+    if (objective?.type === 'ride' && this.mounted &&
       objective.x !== undefined && objective.y !== undefined &&
       this.isNear(this.horse.display.x, this.horse.display.y, objective.x, objective.y, 65)) {
       this.advanceStory('ride', objective.target);
@@ -727,24 +886,12 @@ export class WorldScene extends Phaser.Scene {
     return true;
   }
 
-  /** Drifting lights along the current trail, from the next waymark onward. */
+  /** Glowing hoofprints from the rider to the next waymark of the current trail. */
   private renderActivityMarkers(): void {
-    if (!this.activityMarkers) return;
-    this.activityMarkers.removeAll(true);
+    if (!this.trail) return;
     const objective = storyObjectives[this.storyIndex];
-    if (objective?.type !== 'trail' || !objective.points) return;
-    const tint = objective.glow ?? 0x8ffff0;
-    const remaining = objective.points.slice(this.activityProgress.length);
-    remaining.forEach((point, index) => {
-      this.activityMarkers.add(this.add.image(point.x, point.y, 'environment-glow').setTint(tint).setScale(0.6).setBlendMode(Phaser.BlendModes.ADD));
-      const next = remaining[index + 1];
-      if (!next) return;
-      const steps = Math.floor(Phaser.Math.Distance.Between(point.x, point.y, next.x, next.y) / 38);
-      for (let i = 1; i < steps; i++) {
-        const t = i / steps;
-        this.activityMarkers.add(this.add.circle(point.x + (next.x - point.x) * t, point.y + (next.y - point.y) * t, 3, tint).setBlendMode(Phaser.BlendModes.ADD));
-      }
-    });
+    if (objective?.type !== 'trail' || !objective.points) { this.trail.show(null); return; }
+    this.trail.show(objective.points.slice(this.activityProgress.length), objective.glow);
   }
 
   private completeActivityPoint(id: string): void {
@@ -752,12 +899,18 @@ export class WorldScene extends Phaser.Scene {
     if (!objective || this.activityProgress.includes(id)) return;
     this.activityProgress.push(id);
     this.feedbackTone(520 + this.activityProgress.length * 40);
+    if (objective.type === 'trail') {
+      const point = objective.points?.find(candidate => candidate.id === id);
+      if (point) this.trail.celebrate(point);
+      this.horse.react(['!', '♪', '!!'][this.activityProgress.length % 3]!);
+    }
     const total = activityIds(objective).length;
     if (this.activityProgress.length === total) {
       this.advanceStory(objective.type, objective.target);
     } else {
       this.renderActivityMarkers();
-      this.ui.notify(`${objective.type === 'trail' ? 'Waymark' : 'Horse care'} ${this.activityProgress.length}/${total}`);
+      const label = { trail: 'Waymark', care: 'Horse care', fashion: 'Parade round' }[objective.type as 'trail' | 'care' | 'fashion'] ?? 'Step';
+      this.ui.notify(`${label} ${this.activityProgress.length}/${total}`);
       this.updateQuestText();
       this.persistGame();
     }
@@ -771,14 +924,25 @@ export class WorldScene extends Phaser.Scene {
     this.renderActivityMarkers();
     if (objective.reward) this.addItem(objective.reward);
     const chapter = storyChapters.find(chapter => chapter.name === objective.chapter)!;
-    this.ui.notify(objective.payoff || 'A little further along…');
+    // Talk and inspect payoffs open as dialogue, so the toast would only repeat them.
+    const inDialogue = objective.type === 'talk' || objective.type === 'inspect';
+    const payoff = inDialogue ? '' : objective.payoff || 'A little further along…';
     if (objective.chapterEnd) {
-      this.ui.notify(`${chapter.name} complete · ${chapter.payoff}`);
+      // One toast, so the chapter line does not instantly replace the payoff or the reward.
       if (chapter.reward) this.addItem(chapter.reward);
+      const reward = chapter.reward ? `Collected · ${items.find(({ id }) => id === chapter.reward)?.name} ×1` : '';
+      this.ui.notify([objective.payoff && payoff, `${chapter.name} complete · ${chapter.payoff}`, reward].filter(Boolean).join('\n\n'));
+    } else if (payoff) {
+      this.ui.notify(payoff);
     }
-    this.horse.setEchoTack(this.inventory.has('echo-tack'));
+    this.updateTack();
+    this.syncFinaleSite();
     this.updateQuestText();
     this.persistGame();
+  }
+
+  private updateTack(): void {
+    this.horse.setTack({ echo: this.inventory.has('echo-tack'), rosette: this.inventory.has('forest-rosette') });
   }
 
   private addItem(id: ItemId): void {
@@ -788,17 +952,129 @@ export class WorldScene extends Phaser.Scene {
     this.persistGame();
   }
 
-  private cycleDecoration(slotId: StableDecorationSlotId): void {
-    const selectedId = this.decorationSelections.get(slotId);
-    const available = decorations.filter(d => !('unlockItem' in d) || this.inventory.has(d.unlockItem));
-    const index = available.findIndex(({ id }) => id === selectedId);
-    const decoration = available[(index + 1) % available.length] ?? decorations[0];
+  private availableDecorations(): readonly (typeof decorations)[number][] {
+    return decorations.filter(d => !('unlockItem' in d) || this.inventory.has(d.unlockItem));
+  }
+
+  private placeDecoration(slotId: StableDecorationSlotId, decorationId: DecorationId): void {
+    const decoration = decorations.find(({ id }) => id === decorationId) ?? decorations[0];
     this.decorationSelections.set(slotId, decoration.id);
     const display = this.decorationDisplays.get(slotId);
     display?.marker.setText(decoration.symbol).setColor(decoration.color);
     display?.label.setText(decoration.name);
+    if (display) this.tweens.add({ targets: display.marker, scale: { from: 1.6, to: 1 }, duration: 300, ease: 'Back.Out' });
     this.advanceStory('decorate', 'any-slot');
+    this.advanceStory('decorate', decoration.id);
     this.persistGame();
+  }
+
+  private ownedOutfits(): readonly OutfitId[] {
+    return outfits.filter(item => (item.id !== 'berry' || this.inventory.has('berry-gift') || this.outfitId === 'berry') && (item.id !== 'birthday-teal' || this.inventory.has('echo-tack'))).map(({ id }) => id);
+  }
+
+  private ownedAccessories(): readonly AccessoryId[] {
+    return accessories.filter(item => !item.unlockItem || this.inventory.has(item.unlockItem)).map(({ id }) => id);
+  }
+
+  /** The current rider as HTML, optionally trying on another accessory. */
+  private riderPreview(accessoryId = this.accessoryId): string {
+    const outfit = outfits.find(({ id }) => id === this.outfitId) ?? outfits[0];
+    const appearance = getRiderAppearance(this.appearanceId);
+    const accessory = accessoryId === 'none' ? '' : `<img class="rider-preview accessory-preview" src="${this.textures.getBase64(accessoryKey(accessoryId))}" alt="">`;
+    return `<div class="rider-stack"><img class="rider-preview" style="${this.outfitId === 'birthday-teal' ? 'filter:hue-rotate(-25deg)' : ''}" src="/assets/art/rider-${appearance.id}-${outfit.preview}.png" alt="${appearance.name} rider in ${outfit.name} outfit">${accessory}</div>`;
+  }
+
+  private openStyleParade(): void {
+    const parade = storyObjectives.find(o => o.type === 'fashion');
+    showStyleParade(this.ui, {
+      roundsDone: () => storyObjectives[this.storyIndex]?.type === 'fashion' ? this.activityProgress
+        : parade && storyObjectives.indexOf(parade) < this.storyIndex ? styleParade.rounds.map(({ id }) => id) : [],
+      look: () => ({ outfitId: this.outfitId, accessoryId: this.accessoryId }),
+      owned: () => ({ outfits: this.ownedOutfits(), accessories: this.ownedAccessories() }),
+      preview: () => this.riderPreview(),
+      equip: (piece) => {
+        if ('outfitId' in piece) this.outfitId = piece.outfitId; else this.accessoryId = piece.accessoryId;
+        this.updateOutfitText();
+        this.persistGame();
+      },
+      pass: (roundId) => this.completeActivityPoint(roundId),
+    });
+  }
+
+  private startGrooming(): void {
+    this.launchOverlay('Groom', {
+      horseFrame: horses.findIndex(({ id }) => id === this.horseId) * 4,
+      horseName: this.horseLabel,
+      onFinish: (groomed) => {
+        this.returnFromOverlay();
+        if (!groomed) return;
+        this.feedbackTone(660);
+        const caring = storyObjectives[this.storyIndex]?.type === 'care';
+        if (caring) this.completeActivityPoint('brush');
+        this.advanceStory('groom', 'race-ready');
+        this.ui.notify(`${this.horseLabel} is gleaming. A glossy coat and a very satisfied ear flick.`);
+        if (caring && storyObjectives[this.storyIndex]?.type === 'care') this.openMenu('horse');
+      },
+    });
+  }
+
+  private nearRaceGate(): boolean {
+    const rider = this.mounted ? this.horse.display : this.player;
+    return this.isNear(rider.x, rider.y, STEWARD.x, STEWARD.y, INTERACTION_RANGE + (this.mounted ? 30 : 0)) ||
+      (this.mounted && this.isNear(rider.x, rider.y, raceGate.x, raceGate.y, raceGate.radius));
+  }
+
+  private isTrackOpen(track: RaceTrack): boolean {
+    const objective = storyObjectives[this.storyIndex];
+    if (!track.unlock || (objective?.type === 'race' && objective.target === track.id)) return true;
+    const { afterTrack, afterEcho } = track.unlock;
+    return Boolean((afterTrack && (this.raceBest.has(afterTrack) || storyObjectives.findIndex(o => o.type === 'race' && o.target === afterTrack) < this.storyIndex))
+      || (afterEcho && this.restoredEchoes.includes(afterEcho)));
+  }
+
+  private openRaceMenu(): void {
+    this.playerBody.setVelocity(0, 0);
+    this.horseBody.setVelocity(0, 0);
+    if (this.horseName === null) {
+      this.ui.notify('Race Steward: every race needs a horse. The paddock is just south of the stable.');
+      return;
+    }
+    const cards = raceTracks.map(track => {
+      const open = this.isTrackOpen(track);
+      const best = this.raceBest.get(track.id);
+      return `<div class="track-card${open ? '' : ' locked'}"><div><strong>${track.name}</strong><small>${escapeHTML(open ? track.tagline : track.unlock?.hint ?? '')}</small><small class="best">${best ? `Best ${(best / 1000).toFixed(1)}s` : open ? 'No time yet' : 'Locked'}</small></div>${open ? button(`race-${track.id}`, 'Ride') : ''}</div>`;
+    }).join('');
+    this.ui.show('Race Steward', `<p>Your horse runs on its own. Jump with Space, W, ↑ or a click. Bumps only slow you down, and every finish counts.</p><div class="track-list">${cards}</div>${button('race-cancel', 'Maybe later')}`);
+    this.ui.bind('race-cancel', () => this.ui.close());
+    for (const track of raceTracks) this.ui.bind(`race-${track.id}`, () => { this.ui.close(); this.startRace(track); });
+    this.ui.dialog.querySelector<HTMLButtonElement>('.track-card button')?.focus();
+  }
+
+  private startRace(track: RaceTrack): void {
+    const look = (riderAppearances.findIndex(({ id }) => id === this.appearanceId) * 3 + (outfits.find(({ id }) => id === this.outfitId)?.frame ?? 0));
+    this.launchOverlay('Race', {
+      track,
+      ui: this.ui,
+      horseFrame: horses.findIndex(({ id }) => id === this.horseId) * 4,
+      riderFrame: 36 + look * 2,
+      accessoryKey: this.accessoryId === 'none' ? null : accessoryKey(this.accessoryId),
+      best: this.raceBest.get(track.id) ?? null,
+      record: (result) => this.recordRace(track, result),
+      onExit: () => this.returnFromOverlay(),
+    });
+  }
+
+  private recordRace(track: RaceTrack, result: RaceResult): RaceRecord {
+    const previous = this.raceBest.get(track.id);
+    const newBest = previous === undefined || result.timeMs < previous;
+    if (newBest) this.raceBest.set(track.id, result.timeMs);
+    const reward = previous === undefined ? track.reward : 'horse-apple';
+    this.addItem(reward);
+    this.raceElapsedMs = result.timeMs;
+    this.raceResultText = `${track.name}: ${(result.timeMs / 1000).toFixed(1)}s, ${result.mistakes} bump${result.mistakes === 1 ? '' : 's'}`;
+    this.advanceStory('race', track.id);
+    this.persistGame();
+    return { best: this.raceBest.get(track.id) ?? result.timeMs, newBest, reward: items.find(item => item.id === reward)?.name ?? reward };
   }
 
   private renderStableDecorations(): void {
@@ -817,103 +1093,8 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  private tryStartRace(): void {
-    if (!this.mounted || this.raceCheckpointIndex !== null ||
-      !this.isNear(this.horse.display.x, this.horse.display.y, clearingRace.start.x, clearingRace.start.y, clearingRace.start.radius)) return;
-
-    this.playerBody.setVelocity(0, 0);
-    this.horseBody.setVelocity(0, 0);
-    this.ui.show(clearingRace.name, `<p>A gentle canter around Sunmeadow.</p><p>Ride through ${clearingRace.checkpoints.length} glowing gates in order. Follow the direction in your race HUD. There is no time limit.</p><p class="muted">Reward · Horse Apple ×1<br>Dismount with E to leave the race.</p>${button('ready-race', 'Ready to ride')} ${button('cancel-race', 'Maybe later')}`);
-    this.ui.bind('cancel-race', () => this.ui.close());
-    this.ui.bind('ready-race', () => {
-      this.ui.close();
-      this.countdownMs = 3000;
-      this.countdownNumber = 3;
-      this.ui.setCountdown('3');
-      this.ui.setPrompt('');
-      this.ui.setRace(clearingRace.name + '\nGet ready…');
-      this.feedbackTone(440);
-    });
-  }
-
-  private beginRace(): void {
-    this.raceCheckpointIndex = 0;
-    this.raceStartedAt = this.time.now;
-    this.raceElapsedMs = 0;
-    this.raceLastDisplay = -1;
-    this.updateCheckpointMarkers();
-    this.time.delayedCall(650, () => this.ui.setCountdown(''));
-    this.persistGame();
-  }
-
-  private updateCheckpointMarkers(): void {
-    this.checkpointMarkers.forEach((marker, index) => {
-      marker.setVisible(this.raceCheckpointIndex !== null && index >= this.raceCheckpointIndex);
-      marker.setAlpha(index === this.raceCheckpointIndex ? 1 : 0.25);
-    });
-  }
-
   private feedbackTone(frequency: number): void {
-    if (!(this.sound instanceof Phaser.Sound.WebAudioSoundManager) || this.sound.mute) return;
-    const context = this.sound.context;
-    if (context.state !== 'running') return;
-    const tone = context.createOscillator();
-    const gain = context.createGain();
-    tone.type = 'sine';
-    tone.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.025 * this.sound.volume, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.12);
-    tone.connect(gain);
-    gain.connect(context.destination);
-    tone.start();
-    tone.stop(context.currentTime + 0.13);
-    tone.onended = () => { tone.disconnect(); gain.disconnect(); };
-  }
-
-  private updateRace(): void {
-    if (this.raceCheckpointIndex === null) return;
-
-    if (!this.mounted) {
-      this.raceCheckpointIndex = null;
-      this.raceResultText = `${clearingRace.name}: Cancelled — mount up and return to the start`;
-      this.ui.setRace('');
-      this.persistGame();
-      return;
-    }
-
-    const checkpoint = clearingRace.checkpoints[this.raceCheckpointIndex];
-    if (checkpoint && this.isNear(this.horse.display.x, this.horse.display.y, checkpoint.x, checkpoint.y, checkpoint.radius)) {
-      this.raceCheckpointIndex += 1;
-      this.updateCheckpointMarkers();
-      this.feedbackTone(660);
-      this.raceElapsedMs = this.time.now - this.raceStartedAt;
-      if (this.raceCheckpointIndex === clearingRace.checkpoints.length) {
-        const seconds = (this.time.now - this.raceStartedAt) / 1000;
-        this.raceElapsedMs = this.time.now - this.raceStartedAt;
-        this.raceCheckpointIndex = null;
-        this.raceResultText = `${clearingRace.name}: Finished in ${seconds.toFixed(1)}s! Horse Apple earned.`;
-        this.ui.setRace('');
-        this.addItem(clearingRace.reward);
-        this.advanceStory('race', 'clearing-canter');
-        this.horseBody.setVelocity(0, 0);
-        this.ui.show('A lovely ride!', `<p>${clearingRace.name} · All checkpoints reached</p><div class="result-time">${seconds.toFixed(1)}<small> seconds</small></div><p>Reward collected · Horse Apple ×1</p>${button('finish-race', 'Back to Sunmeadow')}`);
-        this.ui.bind('finish-race', () => this.ui.close());
-        return;
-      }
-      this.ui.notify(`Checkpoint ${this.raceCheckpointIndex}/${clearingRace.checkpoints.length} · Lovely going!`);
-      this.persistGame();
-    }
-
-    const tenths = Math.floor((this.time.now - this.raceStartedAt) / 100);
-    if (tenths !== this.raceLastDisplay) {
-      this.raceLastDisplay = tenths;
-      this.raceElapsedMs = this.time.now - this.raceStartedAt;
-      const next = clearingRace.checkpoints[this.raceCheckpointIndex]!;
-      const dx = next.x - this.horse.display.x;
-      const dy = next.y - this.horse.display.y;
-      const direction = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8];
-      this.ui.setRace(`${clearingRace.name} · ${(tenths / 10).toFixed(1)}s\nGate ${this.raceCheckpointIndex + 1}/${clearingRace.checkpoints.length} · ${next.name} ${direction}`);
-    }
+    tone(this, frequency);
   }
 
   private updateOutfitText(): void {
@@ -924,7 +1105,7 @@ export class WorldScene extends Phaser.Scene {
   private updateQuestText(): void {
     const objective = storyObjectives[this.storyIndex];
     const findingHorse = !this.mounted && this.horseName !== null && objective && ['mount', 'ride', 'trail', 'care'].includes(objective.type);
-    const storyCat = objective?.type === 'cat' ? this.cats.find(cat => cat.definition.id === objective.target) : undefined;
+    const storyCat = objective?.type === 'cat' ? this.cats.find(cat => cat.definition.id === objective.target) : objective?.type === 'pet' ? this.bolt : undefined;
     const next = findingHorse ? { x: this.horse.display.x, y: this.horse.display.y } : storyCat ?? (objective?.type === 'trail' ? objective.points?.[this.activityProgress.length] : objective);
     const located = next?.x !== undefined && next?.y !== undefined;
     this.storyLights?.setVisible(this.storyIndex >= echoStartIndex);
@@ -940,9 +1121,13 @@ export class WorldScene extends Phaser.Scene {
     if (!findingHorse && objective?.type === 'trail' && objective.points) {
       detail = `\n${this.activityProgress.length}/${objective.points.length} · ${objective.points[this.activityProgress.length]?.name ?? ''}`;
     } else if (objective?.type === 'care') detail = `\n${this.activityProgress.length}/3 · H → Your horse · Brush, water, treat`;
+    else if (objective?.type === 'fashion') detail = `\nRound ${this.activityProgress.length + 1}/${styleParade.rounds.length} · ${styleParade.rounds[this.activityProgress.length]?.theme ?? ''}`;
+    const remaining = echoTotal - this.restoredEchoes.length;
     this.questSummary = objective
       ? `${objective.chapter}\n${objective.description}${direction}${detail}`
-      : `More Echoes are stirring…\nEchoes restored ${this.restoredEchoes.length} of ${echoTotal}. Ride, dress up, race, or visit the cats.`;
+      : remaining === 0
+        ? `Happy birthday, ${giftConfig.recipientName}!\nEchoes restored ${echoTotal} / ${echoTotal}. Evervale is yours: ride, race, dress up, decorate or visit the animals.`
+        : `${remaining === 1 ? 'One Echo remains…' : 'More Echoes are stirring…'}\nEchoes restored ${this.restoredEchoes.length} / ${echoTotal}.${remaining === 1 ? ' Something about the last one feels different.' : ''} Ride, race, dress up, or visit the animals.`;
     this.ui.setQuest(this.questSummary);
   }
 
@@ -960,9 +1145,6 @@ export class WorldScene extends Phaser.Scene {
     }
     const inventory: GameSave['inventory'] = {};
     for (const [id, count] of this.inventory) inventory[id] = count;
-    const elapsedMs = this.raceCheckpointIndex === null
-      ? this.raceElapsedMs
-      : Math.max(0, this.time.now - this.raceStartedAt);
     storeGameSave({
       version: SAVE_VERSION,
       appearanceId: this.appearanceId,
@@ -972,6 +1154,7 @@ export class WorldScene extends Phaser.Scene {
       horse: { x: this.horse.display.x, y: this.horse.display.y },
       mounted: this.mounted,
       outfitId: this.outfitId,
+      accessoryId: this.accessoryId,
       firstRideIndex: 0,
       echoQuestIndex: 0,
       storyIndex: this.storyIndex,
@@ -982,7 +1165,9 @@ export class WorldScene extends Phaser.Scene {
       echoProgress: this.echoProgress,
       inventory,
       decorations,
-      race: { checkpointIndex: this.raceCheckpointIndex, elapsedMs, resultText: this.raceResultText },
+      race: { checkpointIndex: null, elapsedMs: this.raceElapsedMs, resultText: this.raceResultText },
+      raceBest: Object.fromEntries(this.raceBest),
+      animals: [...this.animals],
       dialogue: this.activeDialogueId,
     });
   }
@@ -1015,13 +1200,6 @@ export class WorldScene extends Phaser.Scene {
 
     this.mounted = false;
     this.ui.notify('Back on your feet');
-    if (this.raceCheckpointIndex !== null) {
-      this.raceCheckpointIndex = null;
-      this.raceResultText = `${clearingRace.name}: Cancelled — mount up and return to the start`;
-      this.ui.setRace('');
-      this.updateCheckpointMarkers();
-      this.ui.notify('Race left · H → Your horse → Return to the race gate.');
-    }
     this.player.setPosition(spot.x, spot.y);
     this.playerBody.reset(spot.x, spot.y);
     this.playerBody.setVelocity(0, 0);
