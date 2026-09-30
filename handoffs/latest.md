@@ -1,6 +1,6 @@
 # Handoff — audio pass on `sound`
 
-The user requested a full audio polish pass, preserving gameplay/story and adding no dependencies, then explicitly asked for all game/audio work to be pushed to feature branch `sound`. The completed work is on branch `sound`. The older staged birthday build and release-audit changes were preserved; unrelated `.claude/` and `skills-lock.json` remain untracked. Game prerequisites and the audio pass are committed separately for review; publication targets `origin/sound`.
+The user requested a full audio polish pass, preserving gameplay/story and adding no dependencies, then explicitly asked for all game/audio work to be pushed to feature branch `sound`. The completed work is on branch `sound`. The older staged birthday build and release-audit changes were preserved; unrelated `.claude/` and `skills-lock.json` remain untracked. Game prerequisites (`d057d1e`) and the audio pass (`c6d0841`) are committed separately and pushed to `origin/sound`.
 
 ## Implemented
 
