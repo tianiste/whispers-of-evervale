@@ -1,5 +1,9 @@
 # Handoff
 
+## Favicon
+
+Added `public/favicon.svg`, a gold horseshoe with a mint sparkle on the game's dark teal background, and linked it from `index.html` on `main`. Typecheck, content tests, production build and whitespace checks pass. An XML/build-output check confirms the SVG parses and the built HTML references the copied asset. No dependencies or gameplay changes; the existing Vite bundle-size advisory remains.
+
 ## GitHub Pages deployment repair
 
 The user requested fixing the live game after pushing the birthday build. The authoritative repository is `whispers-of-evervale/whispers-of-evervale`.
