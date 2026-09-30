@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 
 /** What an Echo minigame may use. EchoScene owns the flow; a game only draws, plays and reports `done`. */
 export interface MinigameContext {
@@ -104,9 +105,9 @@ export function canvasButton(scene: Phaser.Scene, x: number, y: number, label: s
   const caption = text(scene, 0, 0, label, 17);
   const container = scene.add.container(x, y, [background, caption]).setSize(background.width, 44).setName(name);
   container.setInteractive({ useHandCursor: true })
-    .on('pointerover', () => background.setFillStyle(0x42745f))
+    .on('pointerover', () => { background.setFillStyle(0x42745f); cue(scene, 'ui-hover'); })
     .on('pointerout', () => background.setFillStyle(0x355e53))
-    .on('pointerdown', onClick);
+    .on('pointerdown', () => { cue(scene, 'ui-select'); onClick(); });
   return container;
 }
 
@@ -129,6 +130,7 @@ export function dragToSlots(scene: Phaser.Scene, pieces: readonly Phaser.GameObj
     const home = { x: piece.x, y: piece.y };
     piece.setInteractive({ draggable: true, useHandCursor: true });
     piece.on('dragstart', () => {
+      cue(scene, 'ui-select', 0.5);
       piece.parentContainer?.bringToTop(piece);
       scene.tweens.add({ targets: piece, scale: 1.08, duration: 90 });
     });

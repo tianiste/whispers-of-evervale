@@ -20,10 +20,11 @@ export function showHorseChoice(ui: GameUI, onChoose: (id: HorseId, name: string
     label();
     input.oninput = () => { name = input.value; label(); };
     input.onkeydown = (event) => { if (event.key === 'Enter') confirm.click(); };
-    confirm.onclick = () => onChoose(selected.id, finalName());
+    confirm.onclick = () => { ui.sound('confirm'); onChoose(selected.id, finalName()); };
     for (const horse of horses) ui.bind(`horse-${horse.id}`, () => {
       // Keep a custom name; swap only the untouched suggestion.
       if (!cleanHorseName(name) || cleanHorseName(name) === selected.name) name = horse.name;
+      ui.sound('snort');
       selected = horse;
       render();
     });

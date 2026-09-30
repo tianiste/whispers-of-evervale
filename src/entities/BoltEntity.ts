@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../config/world';
 import { bolt } from '../data/village';
 
@@ -37,6 +38,8 @@ export class BoltEntity {
   private moving = false;
   private busy = false;
   private shown = true;
+  private audible = false;
+  private nextVoiceAt = 0;
 
   constructor(private readonly scene: Phaser.Scene) {
     this.tail = scene.add.image(TAIL_BASE.x, TAIL_BASE.y, 'bolt-tail').setOrigin(0, 0.5).setScale(SCALE).setAngle(TAIL_REST_ANGLE);
@@ -60,6 +63,11 @@ export class BoltEntity {
     if (!this.shown) return;
     this.display.setDepth(this.display.y + 16);
     const distance = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
+    this.audible = distance < 380;
+    if (distance < NEAR_RADIUS && time >= this.nextVoiceAt) {
+      cue(this.scene, 'dog-pant', 0.55);
+      this.nextVoiceAt = time + 14000;
+    }
     this.updateWag(distance < NEAR_RADIUS);
     if (this.moving || this.busy || time < this.nextThinkAt) return;
     this.nextThinkAt = time + THINK_MS;
@@ -77,6 +85,8 @@ export class BoltEntity {
     this.lineIndex++;
     if (!this.busy) {
       this.busy = true;
+      cue(this.scene, this.lineIndex % 3 === 0 ? 'dog-bark' : 'dog-pant');
+      cue(this.scene, 'toy', 0.65);
       this.nextThinkAt = time + 400;
       this.dog.setScale(player.x < this.x ? -1 : 1, 1);
       this.ball.setPosition(BALL_GROUND.x, BALL_GROUND.y);
@@ -87,6 +97,7 @@ export class BoltEntity {
       this.wagTween = this.scene.tweens.add({ targets: this.tail, angle: TAIL_REST_ANGLE + 24, duration: 70, yoyo: true, repeat: -1 });
       this.scene.time.delayedCall(1600, () => {
         this.ball.setPosition(BALL_MOUTH.x, BALL_MOUTH.y);
+        if (this.audible) cue(this.scene, 'toy', 0.45);
         this.busy = false;
         this.wagFast = false;
       });
@@ -112,6 +123,7 @@ export class BoltEntity {
     this.moveTo({ x: bolt.water.x, y: bolt.water.y }, 900);
     this.scene.time.delayedCall(950, () => {
       this.say('*splash*');
+      if (this.audible) cue(this.scene, 'splash', 0.6);
       this.ripples();
       const swimBob = this.scene.tweens.add({ targets: this.body, y: 5, duration: 260, yoyo: true, repeat: -1 });
       this.scene.time.delayedCall(1800, () => {
@@ -137,6 +149,7 @@ export class BoltEntity {
   }
 
   private shakeOff(): void {
+    if (this.audible) cue(this.scene, 'rustle', 0.5);
     this.display.setAngle(-8);
     this.scene.tweens.add({ targets: this.display, angle: 8, duration: 80, yoyo: true, repeat: 3, onComplete: () => this.display.setAngle(0) });
     for (let i = 0; i < 6; i++) {

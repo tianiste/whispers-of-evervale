@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tone } from '../systems/tones';
+import { atmosphere, cue } from '../systems/audio';
 
 export interface GroomSession {
   horseFrame: number;
@@ -43,6 +43,8 @@ export class GroomScene extends Phaser.Scene {
   }
 
   create(): void {
+    atmosphere(this, 'stable');
+    cue(this, 'snort', 0.6);
     // Stable interior: planks, hay, a window of warm light.
     this.add.rectangle(480, 270, 960, 540, 0x6e4a32);
     for (let x = 0; x < 960; x += 48) this.add.rectangle(x, 230, 2, 460, 0x5a3a26);
@@ -114,6 +116,7 @@ export class GroomScene extends Phaser.Scene {
     this.brush.setAngle(-12 + Math.sin(this.time.now / 60) * 8);
     for (const patch of this.patches) {
       if (patch.dirt <= 0 || Phaser.Math.Distance.Between(x, y, patch.x, patch.y) > PATCH_RADIUS) continue;
+      cue(this, 'brush');
       patch.dirt = Math.max(0, patch.dirt - moved * SCRUB);
       patch.blobs.setAlpha(patch.dirt).setScale(0.6 + patch.dirt * 0.4);
       if (this.time.now > this.nextDustAt) {
@@ -130,7 +133,7 @@ export class GroomScene extends Phaser.Scene {
   private cleaned(patch: (typeof this.patches)[number]): void {
     patch.blobs.setVisible(false);
     const remaining = this.patches.filter(candidate => candidate.dirt > 0).length;
-    tone(this, 620 + (this.patches.length - remaining) * 60, 0.12);
+    cue(this, 'shimmer', 0.6);
     this.sparkle(patch.x, patch.y, 10);
     // Ear flick and a contented wiggle.
     this.tweens.add({ targets: this.horse, scaleY: HORSE.scale * 1.02, y: HORSE.y - 4, duration: 110, yoyo: true });
@@ -141,8 +144,8 @@ export class GroomScene extends Phaser.Scene {
   private complete(): void {
     this.done = true;
     this.bar.width = 300;
-    [523, 659, 784].forEach((frequency, i) => this.time.delayedCall(i * 120, () => tone(this, frequency, 0.25)));
-    this.time.delayedCall(420, () => tone(this, 880, 0.35, 'triangle'));
+    cue(this, 'reward');
+    this.time.delayedCall(420, () => cue(this, 'snort'));
     const gleam = this.add.image(HORSE.x, HORSE.y, 'horses', this.session.horseFrame).setScale(HORSE.scale).setTintFill(0xffffff).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: gleam, alpha: 0.45, duration: 260, yoyo: true, repeat: 1 });
     for (let i = 0; i < 4; i++) this.time.delayedCall(i * 160, () => this.sparkle(HORSE.x - 150 + i * 100, HORSE.y - 60 + (i % 2) * 70, 8));
@@ -170,6 +173,7 @@ export class GroomScene extends Phaser.Scene {
   private leave(groomed: boolean): void {
     if (this.leaving) return;
     this.leaving = true;
+    if (!groomed) cue(this, 'ui-back');
     this.cameras.main.fadeOut(400, FADE.r, FADE.g, FADE.b);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.session.onFinish(groomed);

@@ -1,5 +1,6 @@
 // Test hooks: ingredient-0..3, mold-0..5, bake-marker, bake-zone, bake-stop, shell-0..5
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { orehi } from '../data/echoGames';
 import { tone } from '../systems/tones';
 import { burst, canvasButton, createLayer, floatText, GameScope, glow, text, HEIGHT, WIDTH, type Minigame } from './Minigame';
@@ -166,7 +167,7 @@ export const orehiGame: Minigame = (context) => {
           onComplete: () => {
             item.destroy();
             burst(scene, BOWL.x, BOWL.y - 10, 0xfff3d6, 10, 90);
-            tone(scene, 460 + i * 60);
+            cue(scene, 'cook');
             mixedCount++;
             updateMound(mixedCount);
             if (mixedCount === orehi.ingredients.length) scope.after(350, stirAndAdvance);
@@ -186,7 +187,7 @@ export const orehiGame: Minigame = (context) => {
       onComplete: () => {
         bowlGroup.setScale(1);
         mound.clear().fillStyle(0xd8b384, 1).fillCircle(0, -10, 46).lineStyle(2, 0xb8905c, 0.8).strokeCircle(0, -10, 46);
-        tone(scene, 420, 0.2);
+        cue(scene, 'dough');
         scope.after(400, startShape);
       },
     });
@@ -214,7 +215,7 @@ export const orehiGame: Minigame = (context) => {
           mold.disableInteractive();
           drawWalnutHalf(dough, 0xe8cd9c);
           scene.tweens.add({ targets: mold, scaleX: 1.08, scaleY: 1.08, duration: 100, yoyo: true });
-          tone(scene, 380 + i * 30);
+          cue(scene, 'dough');
           filled++;
           if (filled === 6) scope.after(400, startBake);
         });
@@ -229,6 +230,7 @@ export const orehiGame: Minigame = (context) => {
     const flyOut: Phaser.GameObjects.GameObject[] = [plateBg, ...molds];
     scene.tweens.add({ targets: flyOut, x: '+=260', y: '+=30', scale: 0.5, alpha: 0.25, duration: 500, ease: 'Sine.In', onComplete: () => flyOut.forEach(o => o.destroy()) });
     igniteOven();
+    cue(scene, 'oven');
 
     const trackY = 470, trackLeft = 280, trackWidth = 400;
     const track = scene.add.rectangle(480, trackY, trackWidth, 18, 0x2a2420).setStrokeStyle(2, 0xb99b63);
@@ -255,7 +257,7 @@ export const orehiGame: Minigame = (context) => {
     const missBake = (kind: 'early' | 'late'): void => {
       resolved = true;
       context.say(kind === 'early' ? orehi.bake.tooEarly : orehi.bake.tooLate);
-      tone(scene, kind === 'early' ? 260 : 200, 0.16, 'triangle');
+      cue(scene, 'error', 0.6);
       scope.after(500, runMarker);
     };
 
@@ -300,7 +302,7 @@ export const orehiGame: Minigame = (context) => {
           const dollop = scene.add.ellipse(0, -2, 34, 20, 0x4a2c18).setStrokeStyle(1, 0x2e1a0e);
           shell.add(dollop);
           scene.tweens.add({ targets: dollop, y: dollop.y + 5, duration: 160, yoyo: true, ease: 'Sine.Out' });
-          tone(scene, 480 + i * 20);
+          cue(scene, 'dough', 0.7);
           filled++;
           if (filled === 6) scope.after(400, pairAndFinish);
         });

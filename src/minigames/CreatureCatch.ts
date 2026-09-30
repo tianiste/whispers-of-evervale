@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { creatureCatch, type CreatureLook } from '../data/echoGames';
 import { tone } from '../systems/tones';
 import { burst, createLayer, floatText, GameScope, glow, text, type Minigame } from './Minigame';
@@ -116,7 +117,7 @@ export const creatureCatchGame: Minigame = (context) => {
     const landing = { x: pointer.x, y: pointer.y };
     const orb = drawOrb(scene);
     layer.add(orb);
-    tone(scene, 420, 0.1, 'triangle');
+    cue(scene, 'throw');
     scene.tweens.addCounter({
       from: 0, to: 1, duration: 380, ease: 'Sine.Out',
       onUpdate: (tween) => {
@@ -135,7 +136,7 @@ export const creatureCatchGame: Minigame = (context) => {
         scene.tweens.add({ targets: target, scale: 0, x: orb.x, y: orb.y, duration: 220 });
         scene.tweens.add({
           targets: orb, angle: { from: -18, to: 18 }, duration: 170, yoyo: true, repeat: 2, delay: 260,
-          onRepeat: () => tone(scene, 300, 0.05),
+          onRepeat: () => cue(scene, 'thud', 0.45),
           onComplete: () => {
             const name = creatureCatch.creatures[index % creatureCatch.creatures.length]!.name;
             burst(scene, orb.x, orb.y, 0xffe27a, 16);

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { horses, type HorseDefinition } from '../data/horses';
 
 export class HorseEntity {
@@ -40,8 +41,10 @@ export class HorseEntity {
 
   /** A little hop and a thought, e.g. when an Echo trail waymark lights up. */
   react(text: string): void {
+    cue(this.scene, 'snort', 0.65);
+    cue(this.scene, 'jump', 0.45);
     this.bubble.setText(text).setVisible(true).setAlpha(1);
-    this.scene.tweens.add({ targets: this.sprite, y: -22, duration: 140, yoyo: true, ease: 'Sine.Out' });
+    this.scene.tweens.add({ targets: this.sprite, y: -22, duration: 140, yoyo: true, ease: 'Sine.Out', onComplete: () => cue(this.scene, 'land', 0.45) });
     this.scene.tweens.add({ targets: this.bubble, alpha: 0, delay: 1000, duration: 300, onComplete: () => this.bubble.setVisible(false) });
   }
 

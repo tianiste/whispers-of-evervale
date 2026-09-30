@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { holidayMap, type HolidayIcon } from '../data/echoGames';
 import { tone } from '../systems/tones';
 import { burst, createLayer, dragToSlots, GameScope, glow, text, type Minigame } from './Minigame';
@@ -79,16 +80,17 @@ export const holidayMapGame: Minigame = (context) => {
       const slot = slots[index]!;
       pieces[index]!.list.find(child => child instanceof Phaser.GameObjects.Text)?.setVisible(false);
       burst(scene, slot.x, slot.y, 0xffe7a0);
-      tone(scene, 560 + index * 80);
+      cue(scene, places[index]!.icon === 'phone' ? 'phone' : places[index]!.icon === 'walk' ? 'step' : 'cook');
       if (places[index]!.icon === 'walk') {
         for (let i = 0; i < 8; i++) {
           const print = scene.add.ellipse(683 + (i % 2 ? 5 : -5), 400 - i * 44, 6, 9, INK, 0).setDepth(55);
           layer.add(print);
           scene.tweens.add({ targets: print, fillAlpha: 0.7, duration: 200, delay: i * 90 });
+          if (i % 2 === 0) scope.after(i * 90, () => cue(scene, 'step', 0.5));
         }
       }
     },
-    onMiss: () => { context.say(holidayMap.misses[misses++ % holidayMap.misses.length]!); tone(scene, 220, 0.16, 'triangle'); },
+    onMiss: () => { context.say(holidayMap.misses[misses++ % holidayMap.misses.length]!); cue(scene, 'error', 0.5); },
     onDone: () => {
       context.hint('');
       const warm = glow(scene, 480, 225, 0xffe7a0, 5, 0);

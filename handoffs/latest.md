@@ -1,41 +1,22 @@
-# Handoff
+# Handoff — audio pass on `sound`
 
-## Release audit: birthday build
+The user requested a full audio polish pass, preserving gameplay/story and adding no dependencies, then explicitly asked for all game/audio work to be pushed to feature branch `sound`. The completed work is on branch `sound`. The older staged birthday build and release-audit changes were preserved; unrelated `.claude/` and `skills-lock.json` remain untracked. Game prerequisites and the audio pass are committed separately for review; publication targets `origin/sound`.
 
-A final audit of the October 1 build, done at the user's request. There are no new features, and the user approved the fix plan. Nothing is committed: the user commits and tags the release themselves. The suggested commit is `release: birthday build`, tagged `birthday-v1.0`. It also includes the previous batch (Echo VI, the finale and the menus), which was never committed.
+## Implemented
 
-**Audit result**
-- Two headless-Chrome fresh-save playthroughs passed, covering all 46 objectives with reloads at every stage.
-- There were no console errors and no failed or 4xx/5xx asset requests, at 60 FPS.
-- Typecheck, build and `npm test` pass.
-- The personal content was checked: memory order I–VI, the foil tray, Echo V as one Echo, the future Echo and its held final line, Banca and Baber used sparingly, the cats and Bolt in character.
-- There are no fail states, and wrong answers retry immediately.
-- Estimated casual playtime is 65–80 minutes. That is not measured by a person; it comes from travel distances, about 3,800 words of text and 13 minigames.
+- Original synthesized cue palette and soundscape profiles in `src/data/audio.ts`; mixer in `src/systems/audio.ts`, on Phaser's existing context/master destination. Existing `tone()` calls now use its effects bus.
+- Master/music/effects/ambience and mute in title/pause settings, saved separately from the adventure. Legacy master-only preferences migrate; malformed fields default safely.
+- Trusted-gesture unlock, caught resume failures, blur silence, category ramps, crossfading beds, one-shot cooldowns/variation, voice cap and compressor.
+- Menu/creator/horse cards, walking/riding, horse care, panels, dialogue/quests, rewards, decoration, race tracks, grooming, trails and animals have cues.
+- All Echo settings/minigames have material effects; Echo V switches cards/snow/kitchen atmosphere. Echo VI ducks the two held lines, then reveals the card/gifts with restrained cues and returns to normal world ambience.
+- `docs/AUDIO.md` describes sound direction, integration and the synthesized/terrain approximations. Data schemas and art direction are updated.
 
-**Fixes**
-- **Hana is blonde in the world.**
-  - The default rider look's hair pixels (frames 0–11 and 36–41 of `riders.png`, plus `rider-cream-*.png`) were recolored from brown to Echo Hana's blonde.
-  - The look is now labelled "Blonde". Its id is still `cream`, so saves are unchanged.
-  - The Village Baker moved to frame 28 (Midnight · Berry), so she no longer looks like Hana.
-- **Creator:** Begin and the ‹ › arrows are clickable, not only Enter and ←/→.
-- **Toasts:**
-  - Talk and inspect payoffs no longer repeat as a toast behind their dialogue.
-  - At a chapter end, the payoff, the chapter line and any reward share one toast instead of replacing each other.
-  - Long toasts stay up longer.
-- **UI fixes:**
-  - The Race Steward's track descriptions and the "seconds" label in the race results are readable, and locked tracks are less faded.
-  - Buttons that sat next to each other in the shop and the decoration picker are spaced apart.
-  - The wardrobe hint has a gap above it, and the outfit buttons no longer stretch.
-- **Text:** the horse window now says the paddock is south of the stable.
-- **Test:** the harness's final New Game step clicks the creator's Begin button.
+## Validation
 
-## Next
+Typecheck, production build, content/settings tests and whitespace checks pass. Vite retains its existing bundle-size advisory; there is no lint command. The audio-enabled fresh-save Chrome run completed all 46 objectives, six Echoes/minigames, birthday reveal, animals, postgame Moonlight Derby, completed-save reload and responsive panels. Its final menu refresh hit a test-driver race (the old page briefly still reported MainMenu). The shared reload helper now clears the test handle before navigation. The remaining menu/settings/refresh/New Game checks passed from the actual completed-run checkpoint, with no console/network errors. This was a campaign run plus targeted final-menu continuation, not a single uninterrupted green script run. Screenshots in `/tmp/evervale-audio-after` include inspected settings and finale; logs are `/tmp/evervale-audio-playthrough.log` and `/tmp/evervale-menu-continuation.log`.
 
-Nothing is required. Edit `giftConfig.finalMessage` if needed.
+`scripts/verify-audio.mjs` passes: gesture-required unlock, actual-output mute/master zero, category zero and persistence, crossfades, throttling, source cleanup and all 81 generated buffers. A full-volume mixed burst peaked at 0.358, below clipping; no console/network errors. Tests intercept the loaded audio module to expose a test-only accessor, avoiding duplicate Vite module instances. No production debug handles or external audio asset paths were added.
 
-## Known limits
+## Limits
 
-- Minor visual nits: overlapping name tags (Nomi and the Stable Keeper), flat grooming hay bales, an empty Echo IV cabinet, and Miki's birthday "MRRRAOW" briefly covering the horse plaque.
-- The pause menu has no way back to the title screen; saving is automatic.
-- Minigames need a mouse, except grooming (Space auto-brushes).
-- The browser harness needs local port binding (outside the Claude sandbox) and `CHROMIUM`. Do not edit source while it runs, because Vite reloads the page.
+Animal voices and material Foley are synthesized approximations; terrain variation uses existing regional positions. No human headphone audit was performed. No backlog advancement or new task selection. Keep unrelated local tooling files untracked.

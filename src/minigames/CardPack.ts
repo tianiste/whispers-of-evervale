@@ -1,8 +1,8 @@
 // Test hooks (direct children of `layer`): 'tear-strip', 'card-0', 'card-1', 'card-2'.
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { cardPack, type CollectibleCard } from '../data/echoGames';
 import { figureKey } from '../art/EchoFigures';
-import { tone } from '../systems/tones';
 import { burst, createLayer, floatText, GameScope, glow, text, WIDTH, HEIGHT, type Minigame } from './Minigame';
 
 const ADD = Phaser.BlendModes.ADD;
@@ -244,7 +244,7 @@ export const cardPackGame: Minigame = (context) => {
         const thumb = scene.add.rectangle(x, y, sleeveW - 24, sleeveH - 20, color).setStrokeStyle(1, 0x1d1a22, 0.4).setScale(0);
         sleeve.add(thumb);
         scene.tweens.add({ targets: thumb, scale: 1, duration: 220, ease: 'Back.Out' });
-        tone(scene, 500 + i * 30, 0.08);
+        cue(scene, 'insert', 0.6);
         if (i === sleeves.length - 1) {
           burst(scene, PACK_X, restY, 0xffe66b, 22);
           scope.after(1200, () => finish());
@@ -259,7 +259,7 @@ export const cardPackGame: Minigame = (context) => {
     const lines = cardPack.giveLines;
     const line = lines[index % lines.length] ?? lines[0] ?? 'For Tian.';
     context.say(line);
-    tone(scene, 700, 0.12);
+    cue(scene, 'confirm');
     scene.tweens.add({ targets: container, x: 815, y: 460, scale: 0.55, duration: calm ? 500 : 420, ease: 'Cubic.Out' });
     floatText(scene, 815, 430, '♥', '#ff9ab8', 22);
     scope.after(700, () => revealBinder());
@@ -269,7 +269,7 @@ export const cardPackGame: Minigame = (context) => {
 
   const flipCard = (index: number, container: Phaser.GameObjects.Container, card: CollectibleCard): void => {
     flippedSet.add(index);
-    tone(scene, 480, 0.09);
+    cue(scene, 'card');
     scene.tweens.add({
       targets: container,
       scaleX: 0,
@@ -279,8 +279,8 @@ export const cardPackGame: Minigame = (context) => {
         container.removeAll(true);
         container.add(buildCardFace(scene, card, calm));
         scene.tweens.add({ targets: container, scaleX: 1, duration: 130, ease: 'Sine.Out' });
-        tone(scene, 620, 0.1);
         if (card.holo === true) {
+          cue(scene, 'shimmer');
           burst(scene, container.x, container.y, 0xffe66b, 20);
           context.say('A rare holo! Suspiciously familiar.');
         }
@@ -341,7 +341,7 @@ export const cardPackGame: Minigame = (context) => {
     torn = true;
     strip.disableInteractive();
     body.disableInteractive();
-    [720, 560, 420, 300].forEach((freq, i) => scope.after(i * 45, () => tone(scene, freq, 0.07, 'sawtooth')));
+    cue(scene, 'tear');
     burst(scene, strip.x, strip.y, 0xd8b34a, 16);
     scene.tweens.add({
       targets: strip, x: strip.x + 260, y: strip.y - 160, angle: 220, alpha: 0,

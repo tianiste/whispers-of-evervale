@@ -1,22 +1,18 @@
-# Release audit: birthday build
+# Cohesive game audio pass
 
 agent_tier: orchestrator
 context_budget: medium
 
-Status: fixes applied and validated, awaiting the user's review. This is a direct user request with an approved plan, not a backlog selection. The user commits and tags the release; do not commit, push or tag.
+Status: complete and validated. Direct user request; no backlog advancement. Commit and push the complete game/audio work to feature branch `sound` after validation.
 
 ## Goal
-Check that the October 1 build is ready to give to Hana, and fix only the critical or high-impact problems a full fresh-save playthrough turns up. No new features and no architecture changes.
+Add warm, cohesive, original sound feedback and atmosphere across the existing birthday game. Preserve gameplay, story and quest order; add no dependencies. Extend existing synthesis with a small shared mixer.
 
 ## Allowed files
-Rider art (`riders.png`, `rider-cream-*.png`), `riderAppearances.ts`, `village.ts` (Baker frame), `CharacterCreatorScene.ts`, `WorldScene.ts` (toasts, horse window text), `GameUI.ts` (toast duration), `style.css`, `scripts/verify-ui.mjs`, `docs/CURRENT_STATE.md`, `handoffs/latest.md`.
+Audio/settings data and systems, existing scene/entity/minigame/UI audio hooks, browser/content validation scripts, audio documentation, current state and handoff. Existing staged birthday-release work is part of the branch requested by the user; leave unrelated local tooling files alone.
 
 ## Acceptance
-- Hana is blonde in the world, the wardrobe and races, matching her Echo figure; the other two looks are unchanged and saves are unaffected.
-- The creator works with the mouse.
-- The race track text is readable, and dialog buttons have consistent spacing.
-- Talk and inspect payoffs don't repeat as toasts, and chapter-end toasts keep the payoff and the reward.
-- The horse window's paddock direction matches the quest.
+Menu/creator/horse selection, movement, riding, races, grooming, panels, quests, animals, every Echo/minigame, finale and postgame have appropriate sound. Master/music/effects/ambience and mute persist. Autoplay is gesture-gated, identical cues are throttled, scene beds crossfade, and unavailable audio cannot block gameplay.
 
 ## Validation
-Typecheck, build, `npm test`, and the headless-Chrome fresh-save playthrough, with checks for browser errors and failed asset requests.
+Typecheck, production build, content/settings tests, fresh-save Chrome campaign with audio, console/network checks, zero-volume/mute/persistence/rapid-interaction tests. Record actual results and remaining noncritical limits in the handoff.
