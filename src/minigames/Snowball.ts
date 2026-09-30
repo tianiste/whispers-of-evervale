@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { snowball } from '../data/echoGames';
 import { figureKey } from '../art/EchoFigures';
 import { tone } from '../systems/tones';
@@ -129,6 +130,7 @@ export const snowballGame: Minigame = (context) => {
   }
 
   function reactHit(): void {
+    cue(scene, 'bonk', 0.35);
     scene.tweens.add({
       targets: maj, angle: -78, duration: 180, ease: 'Quad.Out',
       onComplete: () => scene.tweens.add({ targets: maj, angle: 0, duration: 420, delay: 240, ease: 'Back.Out' }),
@@ -150,6 +152,7 @@ export const snowballGame: Minigame = (context) => {
     // Then Hana goes too: the view tips back into the snow.
     scope.after(650, () => {
       burst(scene, WIDTH / 2, HEIGHT - 30, 0xffffff, calm ? 12 : 26, calm ? 110 : 190);
+      cue(scene, 'snow');
       fg(text(scene, WIDTH / 2, HEIGHT - 90, 'whumph!', 22, '#ffffff').setStroke('#1c2f74', 4));
       if (!calm) scene.tweens.add({ targets: backdrop, y: 40, angle: -3, duration: 420, ease: 'Quad.Out' });
     });
@@ -163,7 +166,7 @@ export const snowballGame: Minigame = (context) => {
     if (distance <= HIT_RADIUS) {
       hits++;
       hitsText.setText(`Hits ${hits}/${snowball.goal}`);
-      tone(scene, 480, 0.14);
+      cue(scene, 'snow');
       burst(scene, point.x, point.y, 0xffffff, calm ? 7 : 13, calm ? 70 : 130);
       reactHit();
       speak(snowball.majLines[majLineIndex++ % snowball.majLines.length]!);
@@ -175,6 +178,8 @@ export const snowballGame: Minigame = (context) => {
   }
 
   function throwSnowball(target: { x: number; y: number }): void {
+    cue(scene, 'snow', 0.4);
+    cue(scene, 'throw');
     const origin = { x: WIDTH / 2, y: HEIGHT - 4 };
     const control = { x: (origin.x + target.x) / 2, y: Math.min(origin.y, target.y) - 100 };
     const ball = fg(scene.add.circle(origin.x, origin.y, 11, 0xffffff).setStrokeStyle(1, 0xdfeaf5));
@@ -192,7 +197,7 @@ export const snowballGame: Minigame = (context) => {
 
   function splatHana(): void {
     context.say(snowball.hitHana[hanaHitIndex++ % snowball.hitHana.length]!);
-    tone(scene, 190, 0.16, 'triangle');
+    cue(scene, 'snow');
     const edgeX = Math.random() < 0.5 ? 50 : WIDTH - 50;
     const edgeY = 90 + Math.random() * 280;
     const splat = fg(scene.add.circle(edgeX, edgeY, calm ? 30 : 44, 0xffffff, 0.85));
@@ -206,7 +211,7 @@ export const snowballGame: Minigame = (context) => {
     if (!flightActive || dodged) return;
     dodged = true;
     context.say(snowball.ducked);
-    tone(scene, 320, 0.12, 'triangle');
+    cue(scene, 'rustle');
     if (calm) scene.tweens.add({ targets: backdrop, alpha: 0.55, duration: 130, yoyo: true });
     else scene.tweens.add({ targets: backdrop, y: 30, duration: 150, yoyo: true, ease: 'Sine.Out' });
   }

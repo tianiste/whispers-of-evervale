@@ -1,18 +1,18 @@
-# Fix GitHub Pages deployment
+# Cohesive game audio pass
 
-agent_tier: standard
-context_budget: small
+agent_tier: orchestrator
+context_budget: medium
 
-Status: complete. Local checks, GitHub Pages deployment and live Chromium startup verification passed.
+Status: complete and validated. Direct user request; no backlog advancement. Commit and push the complete game/audio work to feature branch `sound` after validation.
 
 ## Goal
-Build and publish the current birthday game at https://evervaleforhana.me/ on pushes to main.
+Add warm, cohesive, original sound feedback and atmosphere across the existing birthday game. Preserve gameplay, story and quest order; add no dependencies. Extend existing synthesis with a small shared mixer.
 
-## Scope
-GitHub Pages workflow, Vite deployment configuration, and project handoff/state documentation. Keep gameplay unchanged.
+## Allowed files
+Audio/settings data and systems, existing scene/entity/minigame/UI audio hooks, browser/content validation scripts, audio documentation, current state and handoff. Existing staged birthday-release work is part of the branch requested by the user; leave unrelated local tooling files alone.
 
 ## Acceptance
-The workflow runs typecheck, tests and build, publishes dist, preserves the custom domain and HTTPS, and the deployed game starts without failed assets or browser exceptions.
+Menu/creator/horse selection, movement, riding, races, grooming, panels, quests, animals, every Echo/minigame, finale and postgame have appropriate sound. Master/music/effects/ambience and mute persist. Autoplay is gesture-gated, identical cues are throttled, scene beds crossfade, and unavailable audio cannot block gameplay.
 
 ## Validation
-Run project checks locally, verify the successful Actions deployment, and smoke-test the production site in an isolated Chromium browser.
+Typecheck, production build, content/settings tests, fresh-save Chrome campaign with audio, console/network checks, zero-volume/mute/persistence/rapid-interaction tests. Record actual results and remaining noncritical limits in the handoff.

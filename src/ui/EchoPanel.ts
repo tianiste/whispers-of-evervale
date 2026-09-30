@@ -27,6 +27,7 @@ export class EchoPanel {
         `<button id="echo-option-${index}" class="${tried.has(index) ? 'tried' : ''}">${escapeHTML(option.text)}</button>`).join('')}</div>`);
       step.options.forEach((option, index) => this.ui.bind(`echo-option-${index}`, () => {
         if (option.correct || step.open) { onSolved(option); return; }
+        this.ui.sound('error');
         tried.add(index);
         render();
         this.ui.notify(option.response ?? this.miss(wrongAnswerLines));
@@ -45,6 +46,7 @@ export class EchoPanel {
       if (side === 'left') left = index; else right = index;
       if (left === null || right === null) { render(); return; }
       const hit = left === right;
+      this.ui.sound(hit ? 'shimmer' : 'error');
       if (hit) { matched.add(left); onPair(left); }
       left = right = null;
       if (matched.size === step.pairs.length) { onSolved(); return; }

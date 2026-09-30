@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { loadGameSave, type GameSave } from '../data/save';
-import { storeVolume } from '../data/settings';
+import { audio, atmosphere, cue } from '../systems/audio';
 
 interface MenuItem {
   /** Object name, so the browser test can find the button. */
@@ -27,6 +27,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
+    atmosphere(this, 'menu');
     this.savedGame = loadGameSave();
     this.rows = [];
     this.leaving = false;
@@ -54,11 +55,11 @@ export class MainMenuScene extends Phaser.Scene {
     const onKey = (event: KeyboardEvent): void => {
       if (this.leaving || event.repeat) return;
       const row = this.rows[this.selected];
-      if (event.key === 'ArrowDown' || event.key === 's' || event.key === 'S') this.select(this.selected + 1);
-      else if (event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W') this.select(this.selected - 1);
+      if (event.key === 'ArrowDown' || event.key === 's' || event.key === 'S') { cue(this, 'ui-hover'); this.select(this.selected + 1); }
+      else if (event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W') { cue(this, 'ui-hover'); this.select(this.selected - 1); }
       else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') row?.item.adjust?.(event.key === 'ArrowLeft' ? -1 : 1);
-      else if (event.key === 'Enter' || event.key === ' ') row?.item.action();
-      else if (event.key === 'Escape') this.showMain();
+      else if (event.key === 'Enter' || event.key === ' ') this.activate(row?.item);
+      else if (event.key === 'Escape') { cue(this, 'ui-back'); this.showMain(); }
     };
     this.input.keyboard?.on('keydown', onKey);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.keyboard?.off('keydown', onKey));
@@ -85,32 +86,39 @@ export class MainMenuScene extends Phaser.Scene {
 
   private showSettings(): void {
     this.message.setText('Settings');
-    const change = (direction: number): void => {
-      const volume = Phaser.Math.Clamp(Math.round(this.sound.volume * 10 + direction) / 10, 0, 1);
-      this.sound.volume = volume;
-      storeVolume(volume);
-      this.refresh();
-    };
+    const mixer = audio(this);
     this.build([
-      {
-        name: 'settings-volume', label: () => `Sound  ◀  ${Math.round(this.sound.volume * 100)}%  ▶`,
-        // A click steps up and wraps to silence after full volume.
-        action: () => change(this.sound.volume >= 1 ? -10 : 1), adjust: change,
-      },
-      { name: 'settings-back', label: () => 'Back', action: () => this.showMain() },
-    ], 0);
+      ...(['volume', 'music', 'effects', 'ambience'] as const).map(key => {
+        const change = (direction: number): void => {
+          mixer.set(key, Math.round(mixer.settings[key] * 10 + direction) / 10);
+          cue(this, 'ui-select');
+          this.refresh();
+        };
+        const label = { volume: 'Master', music: 'Music', effects: 'Effects', ambience: 'Ambience' }[key];
+        return { name: `settings-${key}`, label: () => `${label}  ◀  ${Math.round(mixer.settings[key] * 100)}%  ▶`,
+          action: () => change(mixer.settings[key] >= 1 ? -10 : 1), adjust: change };
+      }),
+      { name: 'settings-mute', label: () => `Mute: ${mixer.settings.muted ? 'On' : 'Off'}`, action: () => { mixer.set('muted', !mixer.settings.muted); this.refresh(); } },
+      { name: 'settings-back', label: () => 'Back', action: () => { cue(this, 'ui-back'); this.showMain(); } },
+    ]);
+  }
+
+  private activate(item?: MenuItem): void {
+    if (!item || this.leaving) return;
+    cue(this, 'ui-select');
+    item.action();
   }
 
   private build(items: MenuItem[], selected = 0): void {
     for (const row of this.rows) { row.box.destroy(); row.text.destroy(); }
     const x = this.scale.width / 2;
     this.rows = items.map((item, index) => {
-      const y = 290 + index * 52;
-      const box = this.add.rectangle(x, y, BUTTON.width, BUTTON.height, BUTTON.fill).setStrokeStyle(2, BUTTON.stroke).setName(item.name)
+      const y = items.length > 3 ? 273 + index * 29 : 290 + index * 52;
+      const box = this.add.rectangle(x, y, BUTTON.width, items.length > 3 ? 26 : BUTTON.height, BUTTON.fill).setStrokeStyle(2, BUTTON.stroke).setName(item.name)
         .setInteractive({ useHandCursor: true });
       const text = this.add.text(x, y, item.label(), { color: '#fff0d1', fontFamily: 'Arial, sans-serif', fontSize: '18px' }).setOrigin(0.5);
-      box.on('pointerover', () => this.select(index));
-      box.on('pointerdown', () => { if (!this.leaving) item.action(); });
+      box.on('pointerover', () => { cue(this, 'ui-hover'); this.select(index); });
+      box.on('pointerdown', () => this.activate(item));
       return { item, box, text };
     });
     this.select(selected);
@@ -133,6 +141,7 @@ export class MainMenuScene extends Phaser.Scene {
   private leave(key: 'World' | 'CharacterCreator', data?: { save: GameSave }): void {
     if (this.leaving) return;
     this.leaving = true;
+    cue(this, 'confirm');
     this.cameras.main.fadeOut(250, 16, 44, 43);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(key, data));
   }

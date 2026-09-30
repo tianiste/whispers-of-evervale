@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ensureRaceTextures, layerKey, obstacleKey } from '../art/RaceArt';
 import { obstacleShapes, RACE_PENALTY_MS, raceThemes, type ObstacleKind, type RaceTrack } from '../data/race';
+import { atmosphere, cue } from '../systems/audio';
 import { tone } from '../systems/tones';
 import { button, escapeHTML, type GameUI } from '../ui/GameUI';
 
@@ -60,6 +61,7 @@ export class RaceScene extends Phaser.Scene {
   private jumpQueuedAt = -Infinity;
   private safeUntil = 0;
   private nextDustAt = 0;
+  private nextHoofAt = 0;
   private paused = false;
   private retry = false;
   private leaving = false;
@@ -92,6 +94,8 @@ export class RaceScene extends Phaser.Scene {
     this.mistakes = 0;
     this.jumpQueuedAt = -Infinity;
     this.safeUntil = 0;
+    this.nextHoofAt = 0;
+    this.nextDustAt = 0;
     this.paused = false;
     this.retry = false;
     this.leaving = false;
@@ -102,6 +106,7 @@ export class RaceScene extends Phaser.Scene {
   create(): void {
     const { track } = this.session;
     const theme = raceThemes[track.theme];
+    atmosphere(this, `race-${track.theme}`);
     this.calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     ensureRaceTextures(this);
 
@@ -195,10 +200,14 @@ export class RaceScene extends Phaser.Scene {
       if (this.height > 0 || this.velocity > 0) {
         this.velocity -= GRAVITY * delta;
         this.height = Math.max(0, this.height + this.velocity * delta);
-        if (this.height === 0) { this.velocity = 0; tone(this, 150, 0.06, 'triangle', 0.02); }
+        if (this.height === 0) { this.velocity = 0; cue(this, 'land'); this.nextHoofAt = time + 150; }
       }
       if (this.phase === 'running') this.checkObstacles(time);
       if (this.phase === 'running' && this.distance >= this.session.track.length) this.finish();
+    }
+    if (this.height === 0 && this.speed > 30 && time >= this.nextHoofAt) {
+      cue(this, 'hoof', 0.7);
+      this.nextHoofAt = time + Phaser.Math.Clamp(60000 / this.speed, 150, 440);
     }
     this.track.setX(HORSE_X - this.distance);
     for (const { sprite, factor } of this.parallax) sprite.tilePositionX = this.distance * factor;
@@ -264,7 +273,7 @@ export class RaceScene extends Phaser.Scene {
     this.jumpQueuedAt = -Infinity;
     this.velocity = JUMP_SPEED;
     this.height = 0.01;
-    tone(this, 520, 0.1, 'sine', 0.02);
+    cue(this, 'jump');
   }
 
   private checkObstacles(time: number): void {
@@ -289,7 +298,8 @@ export class RaceScene extends Phaser.Scene {
     this.penalty += RACE_PENALTY_MS;
     this.mistakes++;
     this.bumpsText.setText(`Bumps ${this.mistakes} · +${(this.penalty / 1000).toFixed(1)}s`);
-    tone(this, shape.splash ? 300 : 120, 0.2, shape.splash ? 'sine' : 'triangle', 0.05);
+    cue(this, shape.splash ? 'splash' : 'thud');
+    if (!shape.splash) cue(this, 'rustle', 0.5);
     if (!this.calm) this.cameras.main.shake(120, 0.006);
     this.tweens.add({ targets: this.rider, alpha: 0.4, duration: 90, yoyo: true, repeat: 3 });
     const x = HORSE_X + 30, y = GROUND_Y - 10;
@@ -310,7 +320,7 @@ export class RaceScene extends Phaser.Scene {
     this.progressMarker.setX(660);
     const timeMs = Math.round(this.elapsed + this.penalty);
     this.timerText.setText(`${this.session.track.name}\n${(timeMs / 1000).toFixed(1)}s`);
-    [523, 659, 784, 1047].forEach((frequency, i) => this.time.delayedCall(i * 110, () => tone(this, frequency, 0.25, 'sine', 0.035)));
+    cue(this, 'reward');
     const confetti = this.add.particles(HORSE_X + 60, GROUND_Y - 160, 'environment-glow', {
       speed: { min: 120, max: 320 }, angle: { min: 200, max: 340 }, gravityY: 400, scale: { start: 0.1, end: 0.04 }, lifespan: 1400,
       tint: [0x55cabb, 0xffd86a, 0xff9ab8, 0xf4efe6], emitting: false,
@@ -324,6 +334,7 @@ export class RaceScene extends Phaser.Scene {
 
   private results(result: RaceResult, record: RaceRecord): void {
     const { track, ui } = this.session;
+    cue(this, 'reveal', 0.6);
     this.banner.setAlpha(0);
     this.session = { ...this.session, best: record.best };
     const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
@@ -335,7 +346,7 @@ export class RaceScene extends Phaser.Scene {
     ].map(([term, value]) => `<div><dt>${term}</dt><dd>${escapeHTML(value!)}</dd></div>`).join('');
     ui.show(`${track.name} · Finished!`, `<div class="result-time">${(result.timeMs / 1000).toFixed(1)}<small> seconds</small></div><dl class="race-stats">${rows}</dl>${button('race-again', 'Race again')} ${button('race-leave', 'Back to Sunmeadow')}`,
       () => { if (this.retry) this.scene.restart(this.session); else this.leave(); }, 'race-results');
-    ui.bind('race-again', () => { this.retry = true; ui.close(); });
+    ui.bind('race-again', () => { cue(this, 'confirm'); this.retry = true; ui.close(); });
     ui.bind('race-leave', () => ui.close());
     ui.dialog.querySelector<HTMLButtonElement>('#race-again')?.focus();
   }
@@ -349,6 +360,7 @@ export class RaceScene extends Phaser.Scene {
   private leave(): void {
     if (this.leaving) return;
     this.leaving = true;
+    cue(this, 'ui-back');
     this.phase = 'finished';
     this.paused = true;
     this.cameras.main.fadeOut(400, FADE.r, FADE.g, FADE.b);

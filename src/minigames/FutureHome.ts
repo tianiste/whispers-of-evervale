@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { futureHome, type FutureSpot } from '../data/echoGames';
-import { tone } from '../systems/tones';
 import { burst, canvasButton, createLayer, FONT, GameScope, type Minigame } from './Minigame';
 
 /**
@@ -44,7 +44,7 @@ export const futureHomeGame: Minigame = (context) => {
         fled = true;
         context.cue(`${spot.id}-flee`);
         context.say(spot.flee.caption);
-        tone(scene, 300, 0.12, 'triangle');
+        cue(scene, 'rustle', 0.5);
         zone.setPosition(spot.flee.x, spot.flee.y);
         sparkle.setPosition(spot.flee.x + spot.width / 2 - 6, spot.flee.y - spot.height / 2 + 4);
         return;
@@ -59,7 +59,7 @@ export const futureHomeGame: Minigame = (context) => {
       scene.tweens.killTweensOf(sparkle);
       sparkle.setVisible(false);
       burst(scene, zone.x, zone.y, 0xbff8ec, 8, 90);
-      tone(scene, 480 + found.size * 30, 0.18);
+      cue(scene, 'confirm', 0.3);
       if (!moveOn && found.size >= futureHome.enough) {
         // Top right, clear of the hint line and the caption toasts.
         moveOn = canvasButton(scene, 830, 38, futureHome.moveOn, 'move-on', finish);

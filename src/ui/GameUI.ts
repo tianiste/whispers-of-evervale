@@ -11,7 +11,7 @@ export class GameUI {
   private onClose: (() => void) | undefined;
   private opener: HTMLElement | null = null;
 
-  constructor(private readonly openMenu: (page: MenuPage) => void, private readonly resetKeys: () => void) {
+  constructor(private readonly openMenu: (page: MenuPage) => void, private readonly resetKeys: () => void, readonly sound: (name: string) => void = () => {}) {
     this.root.className = 'game-ui';
     this.quest.className = 'objective hud-panel';
     this.prompt.className = 'interaction hud-panel';
@@ -37,6 +37,10 @@ export class GameUI {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     });
     this.dialog.addEventListener('keyup', (event) => event.stopPropagation());
+    this.dialog.addEventListener('pointerover', event => {
+      const button = event.target instanceof Element ? event.target.closest('button') : null;
+      if (button && !button.disabled && !(event.relatedTarget instanceof Node && button.contains(event.relatedTarget))) this.sound('ui-hover');
+    });
     document.body.append(this.root, this.dialog);
     window.addEventListener('keydown', this.handleShortcut);
     this.setPrompt('');
@@ -46,6 +50,7 @@ export class GameUI {
 
   show(title: string, content: string, onClose?: () => void, kind = ''): void {
     const focused = this.dialog.contains(document.activeElement) ? (document.activeElement as HTMLElement).id : '';
+    if (!this.isOpen) this.sound('ui-select');
     if (!this.isOpen) this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.onClose = onClose;
     this.dialog.className = `game-dialog ${kind}`;
@@ -59,6 +64,7 @@ export class GameUI {
 
   close(): void {
     if (!this.isOpen) return;
+    this.sound('ui-back');
     this.dialog.close();
     this.root.classList.remove('modal-open');
     this.resetKeys();
@@ -81,7 +87,7 @@ export class GameUI {
 
   bind(id: string, action: () => void): void {
     const button = this.dialog.querySelector<HTMLButtonElement>(`#${id}`);
-    if (button) button.onclick = action;
+    if (button) button.onclick = () => { this.sound(/^(equip|wear|place|parade-outfit|parade-accessory)-/.test(id) ? 'confirm' : /back|leave|cancel/.test(id) ? 'ui-back' : 'ui-select'); action(); };
   }
 
   setQuest(text: string): void { if (this.quest.textContent !== text) this.quest.textContent = text; }

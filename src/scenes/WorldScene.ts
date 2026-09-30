@@ -16,7 +16,7 @@ import { showHorseChoice } from '../ui/HorseChoice';
 import { activityIds, storyChapters, storyObjectives, echoStartIndex, type StoryObjective } from '../data/story';
 import { echoes, getEcho, echoTotal, type EchoDefinition, type EchoId } from '../data/echoes';
 import { birthdayFinale, birthdayReturn, giftConfig } from '../data/birthdayGift';
-import { storeVolume } from '../data/settings';
+import { audio, atmosphere, cue } from '../systems/audio';
 import { birthdayCardHTML } from '../ui/BirthdayCard';
 import { items, type ItemId } from '../data/items';
 import { outfits, type OutfitId } from '../data/outfits';
@@ -101,7 +101,8 @@ export class WorldScene extends Phaser.Scene {
   private raceResultText = '';
   private activeDialogueId: SavedDialogueId | null = null;
   private restoreSave: GameSave | null = null;
-  private ambience!: Phaser.Sound.BaseSound;
+  private nextStepAt = 0;
+  private nextHorseVoiceAt = 0;
   private nextAutosaveAt = 0;
   private obstacles: { x: number; y: number; radius: number }[] = [];
   private movementKeys!: {
@@ -288,12 +289,13 @@ export class WorldScene extends Phaser.Scene {
       .startFollow(this.cameraTarget, false, 0.1, 0.1);
     this.cameras.main.fadeIn(250, 16, 44, 43);
 
-    this.ui = new GameUI((page) => this.openMenu(page), () => this.input.keyboard?.resetKeys());
+    this.ui = new GameUI((page) => this.openMenu(page), () => this.input.keyboard?.resetKeys(), name => cue(this, name));
     this.updateOutfitText();
     this.updateQuestText();
-    this.ambience = this.sound.add('sunmeadow-ambience', { loop: true, volume: 0.12 });
-    this.ambience.play();
+    atmosphere(this, 'stable');
     if (this.activeDialogueId) this.showDialogue(this.activeDialogueId, this.getDialogue(this.activeDialogueId));
+    this.nextStepAt = 0;
+    this.nextHorseVoiceAt = this.time.now + 12000;
     this.nextAutosaveAt = this.time.now + 1000;
     this.syncFinaleSite();
     this.checkCatCompletion();
@@ -302,8 +304,6 @@ export class WorldScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       window.removeEventListener('pagehide', this.handlePageHide);
       this.game.events.off(Phaser.Core.Events.BLUR, this.handleBlur);
-      this.ambience.stop();
-      this.ambience.destroy();
       this.ui.destroy();
     });
     this.persistGame();
@@ -313,6 +313,10 @@ export class WorldScene extends Phaser.Scene {
     const keyboard = this.input.keyboard;
     if (!keyboard || this.overlayActive) return;
     this.echoSites.update(this.player.x, this.player.y);
+    // The map has no terrain tags; use its existing village, pond, tree-line and stable regions.
+    const { x: px, y: py } = this.player;
+    const region = px < 570 && py < 500 ? 'village' : Math.hypot(px - bolt.water.x, py - bolt.water.y) < 210 ? 'pond' : py < 220 ? 'forest' : Math.hypot(px - 800, py - 560) < 290 ? 'stable' : 'fields';
+    atmosphere(this, region);
 
     if (this.ui.isOpen) {
       this.playerBody.setVelocity(0, 0);
@@ -369,6 +373,14 @@ export class WorldScene extends Phaser.Scene {
     const blend = 1 - Math.exp(-response * Math.min(delta, 50) / 1000);
     body.setVelocity(Phaser.Math.Linear(body.velocity.x, x * speed, blend), Phaser.Math.Linear(body.velocity.y, y * speed, blend));
     if (!length && body.speed < 4) body.setVelocity(0, 0);
+    if (body.speed > 35 && this.time.now >= this.nextStepAt) {
+      cue(this, this.mounted ? 'hoof' : 'step', region === 'village' ? 1 : .72);
+      this.nextStepAt = this.time.now + (this.mounted ? Phaser.Math.Clamp(42000 / body.speed, 140, 470) : 330);
+    }
+    if (this.horseName && this.time.now >= this.nextHorseVoiceAt && this.isNear(px, py, this.horse.display.x, this.horse.display.y, 240)) {
+      cue(this, Math.random() < .12 ? 'neigh' : 'snort', .6);
+      this.nextHorseVoiceAt = this.time.now + Phaser.Math.Between(18000, 32000);
+    }
     if (this.mounted) {
       this.horse.setFacing(x);
       const bob = body.speed > 40 ? Math.sin(this.time.now / 85) * 1.5 : 0;
@@ -409,15 +421,19 @@ export class WorldScene extends Phaser.Scene {
     if (this.activeDialogueId || this.overlayActive) return;
     this.playerBody.setVelocity(0, 0);
     this.horseBody.setVelocity(0, 0);
+    const mixer = audio(this);
     const back = button('back-menu', '← Menu');
     if (page === 'pause') {
-      this.ui.show('A moment in Sunmeadow', `<div class="menu-grid">${button('inventory', 'Satchel · I')}${button('wardrobe', 'Wardrobe · O')}${button('horse', 'Horse & stable · H')}${button('journal', 'Quest journal · J')}</div><p class="muted">WASD / arrows to move · E to talk, look, pet and ride</p><label class="settings">Sound <input id="volume" type="range" min="0" max="100" value="${Math.round(this.sound.volume * 100)}"></label>${button('resume', 'Return to the meadow')}`);
+      this.ui.show('A moment in Sunmeadow', `<div class="menu-grid">${button('inventory', 'Satchel · I')}${button('wardrobe', 'Wardrobe · O')}${button('horse', 'Horse & stable · H')}${button('journal', 'Quest journal · J')}</div><p class="muted">WASD / arrows to move · E to talk, look, pet and ride</p>${(['volume', 'music', 'effects', 'ambience'] as const).map(key => `<label class="settings">${{ volume: 'Master Volume', music: 'Music Volume', effects: 'Effects Volume', ambience: 'Ambience Volume' }[key]} <input id="${key}" type="range" min="0" max="100" value="${Math.round(mixer.settings[key] * 100)}"></label>`).join('')}<label class="settings">Mute <input id="audio-mute" type="checkbox" ${mixer.settings.muted ? 'checked' : ''}></label>${button('resume', 'Return to the meadow')}`);
       for (const name of ['inventory', 'wardrobe', 'horse', 'journal'] as const) this.ui.bind(name, () => this.openMenu(name));
       this.ui.bind('resume', () => this.ui.close());
-      this.ui.dialog.querySelector<HTMLInputElement>('#volume')!.oninput = (event) => {
-        this.sound.volume = Number((event.target as HTMLInputElement).value) / 100;
-        storeVolume(this.sound.volume);
-      };
+      for (const key of ['volume', 'music', 'effects', 'ambience'] as const) {
+        const slider = this.ui.dialog.querySelector<HTMLInputElement>(`#${key}`)!;
+        slider.oninput = () => mixer.set(key, Number(slider.value) / 100);
+        slider.onchange = () => cue(this, 'ui-select');
+      }
+      const mute = this.ui.dialog.querySelector<HTMLInputElement>('#audio-mute')!;
+      mute.onchange = () => mixer.set('muted', mute.checked);
     } else if (page === 'inventory') {
       const owned = items.filter(({ id }) => (this.inventory.get(id) ?? 0) > 0);
       this.ui.show('Your satchel', `${owned.length ? owned.map(({ id, name }) => `<div class="item-row"><span class="item-icon" aria-hidden="true">${id === 'wildflower' ? '✿' : '●'}</span>${name}<strong>×${this.inventory.get(id)}</strong></div>`).join('') : '<p>Your satchel is empty.</p><p class="muted">Flowers and gifts from your adventures will appear here.</p>'}<p class="muted">Keepsakes and treats collected along the way.</p>${back}`);
@@ -477,10 +493,13 @@ export class WorldScene extends Phaser.Scene {
       for (const category of ['horse', 'tack', 'stable'] as const) this.ui.bind(`${category}-tab`, () => { this.horseCategory = category; this.pickingSlot = null; this.openMenu('horse'); });
       for (const action of ['brush', 'water', 'treat']) this.ui.bind(`care-${action}`, () => {
         if (this.mounted || !this.isNear(this.player.x, this.player.y, this.horse.display.x, this.horse.display.y, 100)) {
+          cue(this, 'error');
           this.ui.notify('Dismount beside your horse to take care of them.');
           return;
         }
         if (action === 'brush') { this.ui.close(); this.startGrooming(); return; }
+        cue(this, action === 'water' ? 'splash' : 'rustle', .45);
+        cue(this, 'snort', .5);
         if (storyObjectives[this.storyIndex]?.type === 'care') this.completeActivityPoint(action);
         this.openMenu('horse');
         this.ui.notify({ brush: 'A glossy coat and a satisfied ear flick.', water: 'Fresh water. Your horse takes a long, happy drink.', treat: 'The treat disappears. The hopeful look remains.' }[action]!);
@@ -571,7 +590,6 @@ export class WorldScene extends Phaser.Scene {
 
   private petCat(cat: CatEntity): void {
     this.ui.notify(cat.pet(this.time.now, this.player));
-    this.feedbackTone(330);
     this.discover(cat.definition.id);
     this.advanceStory('cat', cat.definition.id);
   }
@@ -582,7 +600,6 @@ export class WorldScene extends Phaser.Scene {
 
   private petBolt(): void {
     this.ui.notify(this.bolt.pet(this.time.now, this.player));
-    this.feedbackTone(392);
     this.discover(bolt.id);
     this.advanceStory('pet', bolt.id);
   }
@@ -919,6 +936,7 @@ export class WorldScene extends Phaser.Scene {
   private advanceStory(type: StoryObjective['type'], target: string): void {
     const objective = storyObjectives[this.storyIndex];
     if (!objective || objective.type !== type || objective.target !== target) return;
+    cue(this, objective.chapterEnd ? 'reward' : 'confirm', .65);
     this.storyIndex++;
     this.activityProgress = [];
     this.renderActivityMarkers();
@@ -947,7 +965,7 @@ export class WorldScene extends Phaser.Scene {
 
   private addItem(id: ItemId): void {
     this.inventory.set(id, (this.inventory.get(id) ?? 0) + 1);
-    this.feedbackTone(550);
+    cue(this, 'reward', .7);
     this.ui.notify(`Collected · ${items.find((item) => item.id === id)?.name} ×1`);
     this.persistGame();
   }
@@ -1177,7 +1195,8 @@ export class WorldScene extends Phaser.Scene {
     this.playerBody.setVelocity(0, 0);
     this.playerBody.enable = false;
     this.ui.notify(`Saddle up · ${this.horseLabel}`);
-    this.feedbackTone(440);
+    cue(this, 'rustle');
+    cue(this, 'hoof', .6);
     this.advanceStory('mount', 'chosen-horse');
   }
 
@@ -1196,9 +1215,10 @@ export class WorldScene extends Phaser.Scene {
         Phaser.Math.Distance.Between(candidate.x, candidate.y, obstacle.x, obstacle.y) >= PLAYER_RADIUS + obstacle.radius,
       ),
     );
-    if (!spot) { this.ui.notify('Move into a little more space to dismount.'); return; }
+    if (!spot) { cue(this, 'error'); this.ui.notify('Move into a little more space to dismount.'); return; }
 
     this.mounted = false;
+    cue(this, 'land', .5);
     this.ui.notify('Back on your feet');
     this.player.setPosition(spot.x, spot.y);
     this.playerBody.reset(spot.x, spot.y);

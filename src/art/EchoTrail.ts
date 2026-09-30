@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import type { TrailPoint } from '../data/story';
 
 const ADD = Phaser.BlendModes.ADD;
@@ -31,6 +32,7 @@ export class EchoTrail {
   private tint = 0x8ffff0;
   private step = 0;
   private nextPrintAt = 0;
+  private nextPulseAt = 0;
   private from = { x: 0, y: 0 };
 
   constructor(private readonly scene: Phaser.Scene) {
@@ -69,7 +71,13 @@ export class EchoTrail {
   }
 
   update(time: number, rider: { x: number; y: number }): void {
-    if (!this.target || time < this.nextPrintAt) return;
+    if (!this.target) return;
+    const proximity = Math.hypot(this.target.x - rider.x, this.target.y - rider.y);
+    if (time >= this.nextPulseAt) {
+      cue(this.scene, 'shimmer', proximity < 140 ? 0.55 : 0.25);
+      this.nextPulseAt = time + (proximity < 140 ? 1100 : 2600);
+    }
+    if (time < this.nextPrintAt) return;
     this.nextPrintAt = time + PRINT_EVERY_MS;
     if (this.step === 0) this.from = { x: rider.x, y: rider.y };
     const dx = this.target.x - this.from.x, dy = this.target.y - this.from.y;
@@ -92,6 +100,7 @@ export class EchoTrail {
 
   /** A waymark was reached. */
   celebrate(point: { x: number; y: number }): void {
+    cue(this.scene, 'reveal', 0.7);
     const burst = this.scene.add.particles(point.x, point.y, 'environment-glow', {
       speed: { min: 60, max: 160 }, scale: { start: 0.16, end: 0 }, alpha: { start: 1, end: 0 }, lifespan: 700, tint: this.tint, blendMode: 'ADD', emitting: false,
     }).setDepth(99998);

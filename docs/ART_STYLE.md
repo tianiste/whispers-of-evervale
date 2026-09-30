@@ -13,3 +13,7 @@ Build atmosphere with layered backgrounds, warm lighting, subtle glow, drifting 
 ## Characters and interface
 
 Characters sit between Star Stable appeal and mild anime stylization: neither chibi nor realistic. Layered sprites should make hair, clothing, color, and accessories legible. Interface uses clear hierarchy, cream text, wood/countryside surfaces, and teal accents. Keep desktop controls and text comfortable to read.
+
+## Sound
+
+Audio follows the same warm countryside and restrained teal-magic direction. UI cues are soft; hooves and material actions carry the feedback. Echoes have distinct beds, and the future memory leaves room around its final lines before a gentle birthday reveal. Original procedural synthesis avoids third-party recordings and adds no dependencies. Palette, routing and known limits: `docs/AUDIO.md`.

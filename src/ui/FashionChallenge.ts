@@ -18,6 +18,7 @@ const chips = (tags: readonly StyleTag[]): string => tags.map(tag => `<span clas
 
 /** The Style Parade: three themes, and any equipped piece carrying the theme's tag passes. */
 export function showStyleParade(ui: GameUI, host: ParadeHost): void {
+  ui.sound('confirm');
   const rounds = styleParade.rounds;
   let introduced = host.roundsDone().length > 0;
   let misses = 0;
@@ -41,7 +42,8 @@ export function showStyleParade(ui: GameUI, host: ParadeHost): void {
     ui.bind('parade-walk', () => {
       const current = host.look();
       const tags = new Set<StyleTag>([...outfitTags[current.outfitId], ...(accessories.find(({ id }) => id === current.accessoryId)?.tags ?? [])]);
-      if (!tags.has(round.tag)) { ui.notify(styleParade.misses[misses++ % styleParade.misses.length]!); return; }
+      if (!tags.has(round.tag)) { ui.sound('error'); ui.notify(styleParade.misses[misses++ % styleParade.misses.length]!); return; }
+      ui.sound('reward');
       host.pass(round.id);
       const last = host.roundsDone().length >= rounds.length || !rounds[host.roundsDone().length];
       ui.show('Sunmeadow Style Parade', `<div class="theme-card passed"><small>${escapeHTML(round.theme.toUpperCase())}</small><h2>★ ★ ★</h2><p><strong>${styleParade.judge}:</strong> ${escapeHTML(round.pass)}</p></div>

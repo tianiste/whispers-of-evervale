@@ -1,17 +1,17 @@
-# Handoff
+# Handoff — main merged into sound
 
-## Favicon
+The user requested bringing `main` into `sound`. The attempted rebase was aborted at the user's direction; this is a normal merge that preserves published history. `main` contributes the GitHub Pages workflow, custom domain, root Vite base and horseshoe favicon. The audio implementation remains unchanged from the previous `sound` tip (`a3c2166`).
 
-Added `public/favicon.svg`, a gold horseshoe with a mint sparkle on the game's dark teal background, and linked it from `index.html` on `main`. Typecheck, content tests, production build and whitespace checks pass. An XML/build-output check confirms the SVG parses and the built HTML references the copied asset. No dependencies or gameplay changes; the existing Vite bundle-size advisory remains.
+Both branches contained the same birthday build under different commits. This caused content and add/add conflicts. For every conflicted runtime/test file, the version on `main` was verified byte-for-byte against the pre-audio birthday commit (`d057d1e`), then the audio-enabled version was retained. Current state now includes both audio and deployment context. No backlog advancement or new task selection.
 
-## GitHub Pages deployment repair
+## Validation
 
-The user requested fixing the live game after pushing the birthday build. The authoritative repository is `whispers-of-evervale/whispers-of-evervale`.
+After merging, `npm run typecheck`, `npm test`, `npm run build` and whitespace checks pass. Runtime and test files have no diff from the previous `sound` tip. The production favicon is present and linked. Vite retains its existing bundle-size advisory; there is no lint script. Browser/audio suites were not rerun for this merge.
 
-The live domain was serving the repository's raw index.html, which referenced `/src/main.ts`. There was no checked-in Vite deployment workflow, so the latest game commit was not deployed.
+The earlier audio validation completed all 46 objectives and postgame, followed by targeted menu checks after fixing a test-driver reload race. Dedicated audio checks passed for 81 buffers, mute/category persistence, crossfades, cleanup and voice limits. These are previous results, not new merge validation.
 
-Added `.github/workflows/pages.yml`: pushes to main or manual dispatch install locked dependencies with Node 22, run typecheck and content tests, build, and publish only `dist` with the official Pages actions. Vite base is `/` for the existing custom domain. Existing Pages configuration already uses workflows and HTTPS at https://evervaleforhana.me/; DNS and domain settings are preserved.
+## Durable context
 
-Local typecheck, tests and production build pass. Vite retains its existing large-bundle advisory; there is no lint script. GitHub Actions run 36625849980 successfully deployed commit d054064. An isolated Chromium smoke test on the live HTTPS domain loaded the production bundle, started New Game, entered Sunmeadow, and recorded no failed network requests or browser errors. The world screenshot was visually checked.
+Audio uses Phaser's Web Audio context with original synthesized cues, regional/music beds and persistent master/music/effects/ambience/mute controls. See `docs/AUDIO.md`. Animal voices and Foley are synthesized approximations; no human headphone audit was performed.
 
-Gameplay is unchanged. The prior release audit recorded two successful full fresh-save browser playthroughs. Local `.claude/` and `skills-lock.json` remain untracked tooling, outside this deployment change.
+Pages deploys only `dist` on pushes to `main` or manual dispatch, at `evervaleforhana.me`. Pushing `sound` does not automatically deploy it. Unrelated `.claude/` and `skills-lock.json` remain untracked.

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import type { ReconstructStep } from '../data/echoes';
 import { tone } from '../systems/tones';
 import { burst, createLayer, dragToSlots, GameScope, glow, text, type Minigame } from './Minigame';
@@ -61,11 +62,11 @@ export function reconstruct(step: ReconstructStep): Minigame {
         scene.tweens.killTweensOf(pieces[index]!);
         pieces[index]!.setAngle(0);
         burst(scene, slots[index]!.x, slots[index]!.y, wedges[index]!.color);
-        tone(scene, 520 + pieces.filter(piece => !piece.input?.enabled).length * 70);
+        cue(scene, 'shimmer', 0.6);
       },
       onMiss: () => {
         context.say(step.misses[misses++ % step.misses.length]!);
-        tone(scene, 220, 0.16, 'triangle');
+        cue(scene, 'error', 0.5);
       },
       onDone: () => {
         context.hint('');

@@ -34,6 +34,31 @@ try {
   const { WORLD_WIDTH, WORLD_HEIGHT } = await load('config/world.js');
   const itemIds = new Set(items.map(item => item.id));
 
+  // Original audio definitions and backward-compatible settings stay safe without audio hardware.
+  const { cues, soundscapes } = await load('data/audio.js');
+  for (const [name, cue] of Object.entries(cues)) {
+    assert.ok(cue.frequency > 0 && cue.frequency < 10000, name);
+    assert.ok(cue.duration > 0 && cue.duration <= 2 && cue.level > 0 && cue.level <= .12, name);
+  }
+  for (const echo of echoes) assert.ok(soundscapes[echo.setting], echo.setting);
+  for (const track of raceTracks) assert.ok(soundscapes[`race-${track.theme}`], track.id);
+  let stored = JSON.stringify({ volume: .4 });
+  globalThis.window = { localStorage: { getItem: () => stored, setItem: (_key, value) => { stored = value; } } };
+  const { loadSettings, storeSettings, defaultSettings } = await load('data/settings.js');
+  assert.deepEqual(loadSettings(), { ...defaultSettings, volume: .4 }, 'Old master-only settings migrate');
+  const silent = { volume: 0, music: 0, ambience: 0, effects: 0, muted: true };
+  storeSettings(silent);
+  assert.deepEqual(loadSettings(), silent, 'All zeros and mute persist');
+  stored = '{broken';
+  assert.deepEqual(loadSettings(), defaultSettings);
+  stored = JSON.stringify({ volume: -1, music: 'loud', effects: 10, ambience: null, muted: 1 });
+  assert.deepEqual(loadSettings(), defaultSettings, 'Invalid preferences use defaults');
+  globalThis.window.localStorage.getItem = () => { throw Error('Storage disabled'); };
+  assert.deepEqual(loadSettings(), defaultSettings);
+  globalThis.window.localStorage.setItem = () => { throw Error('Storage disabled'); };
+  assert.doesNotThrow(() => storeSettings(silent));
+  delete globalThis.window;
+
   // Campaign shape: opening quests, six Echoes, a stirring beat, and Echo VI with the birthday finale last.
   assert.ok(storyChapters.length >= 10 && storyChapters.length <= 14, `${storyChapters.length} chapters`);
   assert.deepEqual(storyChapters.slice(0, 3).map(c => c.name), ['Welcome to Sunmeadow', 'Meet Your Horse', 'Make It Yours']);

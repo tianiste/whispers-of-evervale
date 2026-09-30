@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { atmosphere, cue } from '../systems/audio';
 import { futureHome, type FutureSpotId } from '../data/echoGames';
 import type { EchoSetting } from '../data/echoes';
 import { FIGURE_WIDTH, figureKey, type FigureId } from './EchoFigures';
@@ -49,24 +50,6 @@ function bubble(scene: Phaser.Scene, x: number, y: number, text: string, linger 
 function floatText(scene: Phaser.Scene, x: number, y: number, text: string, color: string): void {
   const label = scene.add.text(x, y, text, { fontFamily: FONT, fontSize: '16px', fontStyle: 'bold', color }).setOrigin(0.5).setDepth(60);
   scene.tweens.add({ targets: label, y: y - 34, alpha: 0, duration: 1300, ease: 'Sine.Out', onComplete: () => label.destroy() });
-}
-
-function kick(scene: Phaser.Scene): void {
-  const sound = scene.sound;
-  if (!(sound instanceof Phaser.Sound.WebAudioSoundManager) || sound.mute || sound.context.state !== 'running') return;
-  const { context } = sound;
-  const now = context.currentTime;
-  const tone = context.createOscillator();
-  const gain = context.createGain();
-  tone.frequency.setValueAtTime(110, now);
-  tone.frequency.exponentialRampToValueAtTime(42, now + 0.12);
-  gain.gain.setValueAtTime(0.06 * sound.volume, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-  tone.connect(gain);
-  gain.connect(context.destination);
-  tone.start(now);
-  tone.stop(now + 0.2);
-  tone.onended = () => { tone.disconnect(); gain.disconnect(); };
 }
 
 // Echo I: a dark hard-techno hall, beams, silhouettes and a very bad first impression.
@@ -120,7 +103,7 @@ function club(scene: Phaser.Scene, calm: boolean): EchoStage {
       floorPulse.setAlpha(0.22);
       scene.tweens.add({ targets: floorPulse, alpha: 0, duration: 380 });
       if (!calm) scene.tweens.add({ targets: camera, zoom: 1.012, duration: 70, yoyo: true });
-      kick(scene);
+      cue(scene, 'kick');
     },
   });
 
@@ -157,6 +140,7 @@ function club(scene: Phaser.Scene, calm: boolean): EchoStage {
         ember.destroy();
         scene.tweens.add({ targets: emberGlow, scale: 1.4, alpha: 0, duration: 420, onComplete: () => emberGlow.destroy() });
         mark();
+        cue(scene, 'bonk', 0.5);
         floatText(scene, cheek.x + 34, cheek.y - 8, 'tsss!', '#ffb36b');
         for (let i = 0; i < 3; i++) {
           const puff = scene.add.circle(cheek.x + 6, cheek.y - 4, 4, 0xb8b0c8, 0.5);
@@ -297,7 +281,7 @@ function split(scene: Phaser.Scene): EchoStage {
     cue(name, instant) {
       if (name === 'office') reveal(officeDim, instant);
       if (name === 'warehouse') reveal(warehouseDim, instant);
-      if (name === 'phones') phones(instant);
+      if (name === 'phones') { if (!instant) cue(scene, 'phone'); phones(instant); }
       if (name === 'sea') sea(instant);
       if (name === 'sea-glow') seaGlow(instant);
     },
@@ -382,6 +366,7 @@ function camper(scene: Phaser.Scene): EchoStage {
     }
     scene.tweens.add({ targets: glass, angle: 100, x: 236, y: 238, duration: 380, ease: 'Quad.In' });
     scene.time.delayedCall(380, () => {
+      cue(scene, 'splash');
       floatText(scene, 300, 236, 'SPLASH!', '#8fd0ff');
       water.setScale(0.15, 1);
       scene.tweens.add({ targets: water, alpha: 0.5, scaleX: 1, duration: 700, ease: 'Sine.Out' });
@@ -392,11 +377,11 @@ function camper(scene: Phaser.Scene): EchoStage {
       scene.tweens.add({ targets: tian, x: squeeze.tian, duration: 900, ease: 'Sine.InOut' });
       scene.tweens.add({ targets: [blanket, fold], x: squeeze.blanketX, displayWidth: squeeze.width, duration: 900, ease: 'Sine.InOut' });
     });
-    scene.time.delayedCall(2250, () => floatText(scene, 518, 180, 'squish', '#fff0d1'));
+    scene.time.delayedCall(2250, () => { cue(scene, 'bonk', 0.45); floatText(scene, 518, 180, 'squish', '#fff0d1'); });
   };
   return {
     cue(name, instant) {
-      if (name === 'game') game(instant);
+      if (name === 'game') { if (!instant) cue(scene, 'ui-select'); game(instant); }
       if (name === 'wet-bed') spill(instant);
     },
   };
@@ -490,8 +475,8 @@ function flat(scene: Phaser.Scene): EchoStage {
     cue(name, instant) {
       if (name === 'room') lights(instant);
       if (name === 'map') pinMap(instant);
-      if (name === 'phones') buzz(instant);
-      if (name === 'dinner') serve(instant);
+      if (name === 'phones') { if (!instant) cue(scene, 'phone'); buzz(instant); }
+      if (name === 'dinner') { if (!instant) cue(scene, 'cook'); serve(instant); }
     },
   };
 }
@@ -622,11 +607,11 @@ function winter(scene: Phaser.Scene, calm: boolean): EchoStage {
   };
   return {
     cue(name, instant) {
-      if (name === 'eve') show(eve, instant);
+      if (name === 'eve') { atmosphere(scene, 'cards'); show(eve, instant); }
       if (name === 'binder') openBinder(instant);
-      if (name === 'snow') show(snow, instant);
-      if (name === 'snow-angels') flop(instant);
-      if (name === 'kitchen') show(kitchen, instant);
+      if (name === 'snow') { atmosphere(scene, 'snow'); show(snow, instant); }
+      if (name === 'snow-angels') { if (!instant) cue(scene, 'snow'); flop(instant); }
+      if (name === 'kitchen') { atmosphere(scene, 'kitchen'); show(kitchen, instant); }
       if (name === 'orehi-plate') serve(instant);
     },
   };
@@ -955,6 +940,7 @@ function future(scene: Phaser.Scene, calm: boolean, context: StageContext): Echo
       scene.tweens.add({
         targets: viski, x: 720, y: 386, duration: 420, ease: 'Quad.In',
         onComplete: () => {
+          cue(scene, 'bonk', 0.45);
           floatText(scene, 724, 330, lines.catLines.viski, '#fff0d1');
           floatText(scene, 740, 346, '✦', '#ffe27a');
           scene.tweens.add({ targets: viski, x: home.x, y: home.y, duration: 500, ease: 'Sine.Out', onComplete: () => scene.tweens.add({ targets: viski, angle: 360, duration: 700, onComplete: () => viski.setAngle(0) }) });
@@ -962,6 +948,8 @@ function future(scene: Phaser.Scene, calm: boolean, context: StageContext): Echo
       });
     },
     bolt: () => {
+      cue(scene, 'toy', 0.55);
+      cue(scene, 'splash', 0.35);
       hop(bolt, 14);
       hearts(bolt.x + 20, bolt.y - 50);
       ball.setPosition(33 * k, 20 * k);
@@ -989,8 +977,21 @@ function future(scene: Phaser.Scene, calm: boolean, context: StageContext): Echo
     trophy: () => { hop(trophy, 6); floatText(scene, trophy.x, trophy.y - 40, '★', '#ffe27a'); },
     blocks: () => { hop(block, 10); floatText(scene, block.x, block.y - 24, '+1', '#8fd06a'); },
   };
+  let nomiVisits = 0;
+  const sounds: Record<string, string> = {
+    nomi: 'cat-nomi', miki: 'cat-miki', viski: 'cat-viski', maco: 'cat-maco', maks: 'cat-maks',
+    'maks-flee': 'cat-maks', bolt: 'dog-pant', hana: 'ui-select', tian: 'cook', phone: 'phone',
+    tv: 'shimmer', takeout: 'rustle', blocks: 'thud', figure: 'ui-select', trophy: 'confirm',
+    picture: 'shimmer', birthday: 'reveal', cats: 'cat-miki', evening: 'ui-select',
+  };
   return {
-    cue(name, instant) { reactions[name]?.(instant); },
+    cue(name, instant) {
+      if (!instant) {
+        const sound = name === 'nomi' && ++nomiVisits > 1 ? 'cat-grumpy' : sounds[name];
+        if (sound) cue(scene, sound, 0.7);
+      }
+      reactions[name]?.(instant);
+    },
   };
 }
 

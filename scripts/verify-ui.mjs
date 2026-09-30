@@ -8,7 +8,7 @@ import { join } from 'node:path';
 const url = process.env.GAME_URL ?? 'http://127.0.0.1:5173';
 const shots = process.env.SHOTS_DIR ?? tmpdir();
 const profile = mkdtempSync(join(tmpdir(), 'evervale-ui-'));
-const browser = spawn(process.env.CHROMIUM ?? 'chromium', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--autoplay-policy=no-user-gesture-required', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank']);
+const browser = spawn(process.env.CHROMIUM ?? 'chromium', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--autoplay-policy=user-gesture-required', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank']);
 let socket;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const log = message => console.log(`· ${message}`);
@@ -37,11 +37,14 @@ try {
       if (message.error) promise?.reject(Error(JSON.stringify(message.error)));
       else promise?.resolve(message.result);
     } else if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text);
+    else if (message.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(message.params.type)) errors.push(message.params.args.map(a => a.value ?? a.description).join(' '));
+    else if (message.method === 'Network.responseReceived' && message.params.response.status >= 400) errors.push(`${message.params.response.status} ${message.params.response.url}`);
+    else if (message.method === 'Network.loadingFailed' && !message.params.canceled) errors.push(message.params.errorText);
     else if (message.method === 'Log.entryAdded' && message.params.entry.level === 'error') errors.push(message.params.entry.text);
     else if (message.method === 'Fetch.requestPaused') {
       const source = await (await fetch(message.params.request.url)).text();
-      assert.ok(source.includes('new Phaser.Game('));
-      await send('Fetch.fulfillRequest', { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'application/javascript' }], body: Buffer.from(source.replace('new Phaser.Game(', 'window.__testGame = new Phaser.Game(')).toString('base64') });
+      const patched = message.params.request.url.includes('/src/systems/audio.ts') ? source + '\nwindow.__testAudio = audio;' : source.replace('new Phaser.Game(', 'window.__testGame = new Phaser.Game(');
+      await send('Fetch.fulfillRequest', { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'application/javascript' }], body: Buffer.from(patched).toString('base64') });
     }
   };
   const evaluate = async expression => {
@@ -61,10 +64,11 @@ try {
     }
     assert.fail(`${label} · ${JSON.stringify(errors)}`);
   };
+  const reloadPage = async () => { await evaluate('delete window.__testGame'); await send('Page.reload'); };
   const waitForMenu = () => waitFor(`window.__testGame?.scene.isActive('MainMenu')`, 'Main menu did not load');
   const sceneState = (scene, expression) => evaluate(`(()=>{const s=window.__testGame.scene.getScene(${JSON.stringify(scene)});return (${expression})})()`);
   const state = expression => sceneState('World', expression);
-  const key = (key, type = 'keyDown') => send('Input.dispatchKeyEvent', { type, key, text: type === 'keyDown' && key === 'Enter' ? '\r' : undefined, code: key === ' ' ? 'Space' : key.length === 1 ? `Key${key.toUpperCase()}` : key, windowsVirtualKeyCode: ({ Enter: 13, Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, ' ': 32 })[key] ?? key.toUpperCase().charCodeAt(0) });
+  const key = (key, type = 'keyDown') => send('Input.dispatchKeyEvent', { type, key, text: type === 'keyDown' && key === 'Enter' ? '\r' : undefined, code: key === ' ' ? 'Space' : key.length === 1 ? `Key${key.toUpperCase()}` : key, windowsVirtualKeyCode: ({ Enter: 13, Escape: 27, Tab: 9, Home: 36, End: 35, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, ' ': 32 })[key] ?? key.toUpperCase().charCodeAt(0) });
   const press = async k => { await key(k); await wait(70); await key(k, 'keyUp'); await wait(130); };
   const click = async selector => {
     const point = await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing ${selector}');e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
@@ -76,7 +80,7 @@ try {
   const dialogOpen = () => evaluate('document.querySelector("dialog").open');
   const place = async (x, y, horse = false) => { await state(`s.${horse ? 'horseBody' : 'playerBody'}.reset(${x},${y})`); await wait(120); };
   const screenshot = async name => { const shot = await send('Page.captureScreenshot'); writeFileSync(join(shots, `evervale-${name}.png`), Buffer.from(shot.data, 'base64')); };
-  const reload = async () => { await wait(1100); await send('Page.reload'); await waitForMenu(); await press('Enter'); await waitFor(`window.__testGame.scene.isActive('World')`, 'World after reload'); await wait(150); };
+  const reload = async () => { await wait(1100); await reloadPage(); await waitForMenu(); await press('Enter'); await waitFor(`window.__testGame.scene.isActive('World')`, 'World after reload'); await wait(150); };
 
   // Canvas input in game coordinates (960×540, scaled to fit the page).
   const toPage = (x, y) => evaluate(`(()=>{const r=document.querySelector('canvas').getBoundingClientRect();return {x:r.left+${x}*r.width/960,y:r.top+${y}*r.height/540}})()`);
@@ -93,15 +97,38 @@ try {
   const waitPiece = async (name, clickable = true) => { await waitFor(`(()=>{const l=window.__testGame.scene.getScene('Echo').children.getByName('minigame');const o=l&&l.getByName(${JSON.stringify(name)});return !!o&&o.visible&&(${!clickable}||!!o.input?.enabled)})()`, `${name} appears`); await wait(200); return piece(name); };
   const layerText = needle => sceneState('Echo', `(()=>{const find=o=>(o.text??'').includes(${JSON.stringify(needle)})||(o.list??[]).some(find);const l=s.children.getByName('minigame');return !!l&&find(l)})()`);
 
-  await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
-  await send('Fetch.enable', { patterns: [{ urlPattern: '*/src/main.ts*' }] });
+  await send('Runtime.enable'); await send('Log.enable'); await send('Network.enable'); await send('Page.enable');
+  await send('Fetch.enable', { patterns: [{ urlPattern: '*/src/main.ts*' }, { urlPattern: '*/src/systems/audio.ts*' }] });
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url }); await waitForMenu();
+  const mixState = expression => evaluate(`(()=>{const m=window.__testAudio(window.__testGame.scene.getScene('MainMenu'));return (${expression})})()`);
+  assert.equal(await mixState('m.unlocked'), false, 'No audio starts before the first trusted interaction');
+  assert.equal(await mixState('m.beds.length'), 0);
   await screenshot('menu'); await press('Enter'); await wait(200);
-  assert.equal(await evaluate(`window.__testGame.scene.isActive('CharacterCreator')`), true);
+  await waitFor(`window.__testGame.scene.isActive('CharacterCreator')`, 'Creator loads');
+  assert.equal(await mixState('m.unlocked && m.context.state === "running"'), true, 'First keyboard interaction unlocks audio');
+  assert.equal(await mixState('m.beds.length'), 2, 'Music and ambience run');
   for (let choice = 0; choice < 3; choice++) await press('ArrowRight');
-  await press('Enter'); await wait(400);
+  await press('Enter'); await waitFor(`window.__testGame.scene.isActive('World')`, 'World loads');
   assert.equal(await state('s.sys.isActive()'), true);
+  // The native sliders update the live graph, retain zero, and survive refresh.
+  // Keep an effects source active while checking its ramp: inactive nodes need not render parameters.
+  await mixState(`(()=>{const o=m.context.createOscillator(),g=m.context.createGain();g.gain.value=.001;o.connect(g);g.connect(m.buses.get('effects'));o.start();window.__audioProbe={o,g};return true})()`);
+  for (const [id, bus] of [['volume', null], ['music', 'music'], ['effects', 'effects'], ['ambience', 'ambience']]) {
+    await press('Escape'); await click(`#${id}`); await press('Home'); await wait(800);
+    assert.equal(await mixState(`m.settings.${id}`), 0, `${id} accepts zero`);
+    const gain = await mixState(bus ? `m.buses.get('${bus}').gain.value` : 'm.sound.volume');
+    assert.ok(gain < .0001, `${id} silences its output: ${gain}`);
+    await press('End'); await press('Escape');
+  }
+  await evaluate('window.__audioProbe.o.stop(); window.__audioProbe.o.disconnect(); window.__audioProbe.g.disconnect(); delete window.__audioProbe');
+  await press('Escape'); await click('#audio-mute');
+  assert.equal(await evaluate('window.__testGame.sound.mute'), true);
+  await click('#audio-mute'); await press('Escape');
+  // A rapid burst is bounded even when several different cues compete.
+  assert.ok(await mixState(`(()=>{for(let i=0;i<100;i++)m.cue('hoof');return m.voices<=16})()`));
+  await wait(1200);
+  assert.ok(await mixState(`m.voices < 4`), 'One-shots release their nodes');
   assert.equal(await state('s.horseName'), null, 'The creator only creates Hana');
   assert.equal(await state('s.horse.display.visible'), false);
   assert.equal(await evaluate(`['riders','horses','environment-ground','cat-nomi','cat-miki','cat-viski','cat-maks','cat-maco','bolt','bolt-tail','accessory-straw-hat','accessory-flower-crown','figure-hana','figure-tian','figure-maj','figure-tilen'].every(k=>window.__testGame.textures.exists(k))`), true);
@@ -192,8 +219,7 @@ try {
         await wait(400);
         await press(' ');
         assert.ok(await sceneState('Race', 's.height > 0'), 'Space jumps');
-        await wait(900);
-        assert.equal(await sceneState('Race', 's.height'), 0, 'The horse lands');
+        await waitFor(`window.__testGame.scene.getScene('Race').height === 0`, 'The horse lands');
         await waitFor(`window.__testGame.scene.getScene('Race').mistakes > 0`, 'Hitting an obstacle', 120);
         assert.ok(await sceneState('Race', 's.penalty >= 1000 && s.phase === "running"'), 'A bump costs time but never ends the race');
         await screenshot('race-bump');
@@ -243,7 +269,12 @@ try {
       const wrongSlot = await piece('slot-1');
       await dragGame(first, wrongSlot);
       assert.ok((await text('.reward-toast')).length > 0 && (await piece('fragment-0')).enabled, 'A wrong slot sends the fragment home');
-      for (let i = 0; i < step.fragments.length; i++) { const from = await piece(`fragment-${i}`); const to = await piece(`slot-${i}`); await dragGame(from, to); }
+      await waitFor(`(()=>{const p=window.__testGame.scene.getScene('Echo').children.getByName('minigame').getByName('fragment-0');return Math.abs(p.x-${first.x})<.1&&Math.abs(p.y-${first.y})<.1})()`, 'Wrong fragment finishes returning home');
+      for (let i = 0; i < step.fragments.length; i++) {
+        const from = await piece(`fragment-${i}`), to = await piece(`slot-${i}`);
+        await dragGame(from, to);
+        assert.equal((await piece(`fragment-${i}`))?.enabled, false, `Fragment ${i} snaps into its slot`);
+      }
     },
     async 'holiday-map'() {
       await waitPiece('activity-0');
@@ -519,7 +550,11 @@ try {
       await place(x - 25, y); await wait(100);
       assert.equal(await text('.interaction'), 'E · Pet Bolt');
       await screenshot('bolt');
-      await press('e');
+      // Bolt can leave for the pond while a software-rendered screenshot is being captured.
+      for (let attempt = 0; attempt < 4 && await state('s.storyIndex') === index; attempt++) {
+        const [bx, by] = await state('[s.bolt.x, s.bolt.y]');
+        await place(bx - 15, by); await press('e');
+      }
     } else if (objective.type === 'choose-horse') {
       await dismountIfNeeded(); await place(objective.x, objective.y); await wait(200);
       assert.equal(await text('.interaction'), 'E · Meet the horses');
@@ -619,16 +654,17 @@ try {
 
   // Main menu: Continue only with a save, Settings keep the volume, New Game asks before replacing the save.
   const menuRows = () => sceneState('MainMenu', 's.rows.map(r => r.item.name)');
-  await wait(1100); await send('Page.reload'); await waitForMenu(); await wait(300);
+  await wait(1100); await reloadPage(); await waitForMenu(); await wait(300);
   assert.deepEqual(await menuRows(), ['menu-continue', 'menu-new', 'menu-settings']);
   await screenshot('menu-continue');
   await press('ArrowDown'); await press('ArrowDown'); await press('Enter');
-  assert.deepEqual(await menuRows(), ['settings-volume', 'settings-back']);
+  assert.deepEqual(await menuRows(), ['settings-volume', 'settings-music', 'settings-effects', 'settings-ambience', 'settings-mute', 'settings-back']);
   await press('ArrowLeft'); await press('ArrowLeft');
   assert.equal(await evaluate('Math.round(window.__testGame.sound.volume * 100)'), 80);
   await screenshot('menu-settings'); await press('Escape');
-  await send('Page.reload'); await waitForMenu(); await wait(300);
+  await reloadPage(); await waitForMenu(); await wait(300);
   assert.equal(await evaluate('Math.round(window.__testGame.sound.volume * 100)'), 80, 'Volume persists');
+  assert.deepEqual(await mixState('[m.settings.music, m.settings.effects, m.settings.ambience, m.settings.muted]'), [1,1,1,false], 'Category settings persist across campaign reloads');
   await press('ArrowDown'); await press('Enter');
   assert.deepEqual(await menuRows(), ['confirm-keep', 'confirm-new'], 'New Game asks first');
   await screenshot('menu-confirm');

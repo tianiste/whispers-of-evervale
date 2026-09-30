@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { atmosphere, cue } from '../systems/audio';
 import { giftConfig } from '../data/birthdayGift';
 import { riderAppearances } from '../data/riderAppearances';
 import type { RiderAppearanceId } from '../data/riderAppearances';
@@ -17,6 +18,7 @@ export class CharacterCreatorScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
     this.starting = false;
+    atmosphere(this, 'menu');
     this.add.image(0, 0, 'environment-ground').setOrigin(0).setScale(2);
     this.add.rectangle(width / 2, height / 2, width, height, 0x203f31, 0.5);
     this.add.rectangle(width / 2, height / 2, 620, 458, 0x4c3828).setStrokeStyle(4, 0xc4a574);
@@ -46,7 +48,7 @@ export class CharacterCreatorScene extends Phaser.Scene {
     }
     const begin = this.add.rectangle(width / 2, 458, 320, 44, 0x315b4e).setStrokeStyle(2, 0x99c0a4)
       .setInteractive({ useHandCursor: true }).setName('creator-begin');
-    begin.on('pointerover', () => begin.setFillStyle(0x42745f));
+    begin.on('pointerover', () => { begin.setFillStyle(0x42745f); cue(this, 'ui-hover'); });
     begin.on('pointerout', () => begin.setFillStyle(0x315b4e));
     begin.once('pointerdown', () => this.begin());
     this.add.text(width / 2, 458, 'Enter · Begin your adventure', {
@@ -63,11 +65,13 @@ export class CharacterCreatorScene extends Phaser.Scene {
   private begin(): void {
     if (this.starting) return;
     this.starting = true;
+    cue(this, 'confirm');
     const appearanceId: RiderAppearanceId = riderAppearances[this.selectedIndex]!.id;
     this.scene.start('World', { appearanceId });
   }
 
   private select(direction: number): void {
+    cue(this, 'ui-select');
     this.selectedIndex = (this.selectedIndex + direction + riderAppearances.length) % riderAppearances.length;
     this.updatePreview();
   }

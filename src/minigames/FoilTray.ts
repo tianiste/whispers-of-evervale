@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { figureKey } from '../art/EchoFigures';
 import { foilTray } from '../data/echoGames';
-import { tone } from '../systems/tones';
 import { burst, createLayer, floatText, GameScope, glow, text, type Minigame } from './Minigame';
 
 // Test hooks: layer children 'flap-top|bottom|left|right' (drag toward the tray centre),
@@ -81,6 +81,7 @@ export const foilTrayGame: Minigame = (context) => {
     layer.add(handle);
     const home = { x: handle.x, y: handle.y };
     handle.setInteractive({ draggable: true, useHandCursor: true });
+    handle.on('dragstart', () => cue(scene, 'foil'));
     handle.on('drag', (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
       const pull = Math.max(0, (dragX - home.x) * toward.x + (dragY - home.y) * toward.y);
       handle.setPosition(home.x + toward.x * Math.min(pull, FLAP), home.y + toward.y * Math.min(pull, FLAP));
@@ -94,7 +95,7 @@ export const foilTrayGame: Minigame = (context) => {
         return;
       }
       handle.disableInteractive().setVisible(false);
-      tone(scene, 330 + folded * 60, 0.12, 'triangle');
+      cue(scene, 'fold');
       // The folded flap becomes a crinkly wall along its edge.
       const x0 = x + (vertical ? -w / 2 : 0), y0 = y + (vertical ? 0 : -h / 2);
       walls.lineStyle(9, FOIL_DARK).lineBetween(x0, y0, x0 + (vertical ? w : 0), y0 + (vertical ? 0 : h));
@@ -131,7 +132,7 @@ export const foilTrayGame: Minigame = (context) => {
         pinched.add(index);
         dot.setVisible(false);
         redrawCrimps();
-        tone(scene, 700, 0.06, 'square', 0.015);
+        cue(scene, 'pinch');
         burst(scene, dot.x, dot.y, 0xffffff, 6, 80);
         // The first corner gives up exactly once, right after the second pinch.
         if (!sprung && pinched.size === 2) {
@@ -146,7 +147,7 @@ export const foilTrayGame: Minigame = (context) => {
             again?.setVisible(true);
             floatText(scene, cx + corners[first]![0], cy + corners[first]![1] - 16, 'boing!', '#ffd98a', 18);
             context.say(foilTray.springBack);
-            tone(scene, 180, 0.2, 'triangle');
+            cue(scene, 'spring');
             scene.tweens.add({ targets: [base, walls, crimps, fillings], angle: { from: -2, to: 2 }, duration: 70, yoyo: true, repeat: 2, onComplete: () => [base, walls, crimps, fillings].forEach(part => part.setAngle(0)) });
           });
         }
@@ -167,7 +168,7 @@ export const foilTrayGame: Minigame = (context) => {
         const slab = scene.add.rectangle(0, -40, w - 34, h - 34 - added * 18, layerInfo.color).setStrokeStyle(1, 0x000000, 0.15);
         fillings.add(slab);
         scene.tweens.add({ targets: slab, y: -added * 4, duration: 260, ease: 'Bounce.Out' });
-        tone(scene, 260 + added * 90, 0.1, 'sine');
+        cue(scene, 'foil');
         if (++added === foilTray.layers.length) scope.after(500, stamp);
       });
     });
@@ -185,7 +186,7 @@ export const foilTrayGame: Minigame = (context) => {
     ]);
     layer.add(card);
     scene.tweens.add({ targets: card, scale: 1, alpha: 1, duration: 170, ease: 'Back.Out', onComplete: () => {
-      tone(scene, 110, 0.25, 'triangle', 0.05);
+      cue(scene, 'stamp');
       if (!calm) scene.cameras.main.shake(140, 0.006);
       ovenWindow.setFillStyle(0xff9a4a);
       layer.add(glow(scene, 870, 350, 0xffa04a, 1.2, 0.6));

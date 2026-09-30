@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { atmosphere, cue, duck } from '../systems/audio';
 import { createEchoStage, type EchoStage, type StageContext } from '../art/EchoStages';
 import { birthdayReveal } from '../data/birthdayGift';
 import { echoTotal, type EchoDefinition, type EchoStep, type PlayStep, type ReconstructStep } from '../data/echoes';
@@ -54,6 +55,8 @@ export class EchoScene extends Phaser.Scene {
   create(): void {
     const { echo, ui } = this.session;
     this.calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    atmosphere(this, echo.setting);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => duck(this, 1));
     this.stage = createEchoStage(this, echo.setting, this.calm, this.session.horse);
     for (const step of echo.steps) if (this.solved.has(step.id)) this.replay(step);
     this.add.text(24, 16, `ECHO ${echo.numeral}`, {
@@ -132,6 +135,7 @@ export class EchoScene extends Phaser.Scene {
   }
 
   private solve(step: EchoStep, response: string): void {
+    cue(this, 'confirm', 0.55);
     this.record(step);
     this.panel.story([response], 'Continue', () => this.next());
   }
@@ -145,6 +149,7 @@ export class EchoScene extends Phaser.Scene {
     const { echo, ui, restoredBefore } = this.session;
     this.restored = true;
     if (echo.finale) { this.finale(); return; }
+    cue(this, 'reveal', 0.7);
     const reward = items.find(item => item.id === echo.reward)?.name ?? echo.reward;
     this.panel.complete(echo.completion, reward, restoredBefore + 1, echoTotal, () => ui.close());
   }
@@ -156,14 +161,21 @@ export class EchoScene extends Phaser.Scene {
   private finale(): void {
     const { echo, ui, restoredBefore } = this.session;
     ui.dismiss();
+    duck(this, 0.35);
     this.hold(echo.completion, { from: 0, dim: 0.55, stack: true }, () => {
+      atmosphere(this, 'finale');
+      duck(this, 0.7);
+      cue(this, 'reveal', 0.6);
       this.panel.story(birthdayReveal, 'Continue', () => {
         ui.dismiss();
         this.canvasOnly = true;
+        duck(this, 1);
         this.stage.cue('birthday', false);
         this.time.delayedCall(2400, () => {
           this.canvasOnly = false;
+          cue(this, 'card', 0.6);
           this.panel.page(birthdayCardHTML(), 'Open your gifts', () => {
+            cue(this, 'reward', 0.65);
             this.panel.page(birthdayGiftsHTML(restoredBefore + 1, echoTotal), 'Return to Evervale', () => ui.close(), 'birthday');
           }, 'birthday');
         });
@@ -207,6 +219,7 @@ export class EchoScene extends Phaser.Scene {
   private finish(): void {
     if (this.finishing) return;
     this.finishing = true;
+    duck(this, 1);
     this.cameras.main.fadeOut(450, FADE.r, FADE.g, FADE.b);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.activeGame?.destroy();

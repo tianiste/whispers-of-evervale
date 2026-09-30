@@ -11,3 +11,7 @@ Story position: `storyTarget` (objective ID, or `complete`) wins over `storyInde
 Malformed or unsupported saves are deleted and start a new game through the character creator. Version 1 has no migration path; bump the version when its shape changes. Validate stored JSON against typed IDs, world bounds, and current objective/race ranges. Storage access failures leave the game playable without crashing. Add future state only when its systems are implemented.
 
 Birthday text belongs in editable gift configuration (recipient name, optional nickname, final message, developer name), not shared game state unless progress requires an unlock flag.
+
+## Audio preferences
+
+`whispers-of-evervale-settings` is separate from the version-1 adventure save. `src/data/settings.ts` reads `{ volume, music, ambience, effects, muted }`: each volume is a finite number in `[0, 1]`, and mute is boolean. Defaults: `1`, `.65`, `.65`, `.8`, `false`. The legacy `{ volume }` object retains its master value and fills new categories with defaults. Invalid/missing fields fall back individually; zero is valid. Storage failures keep the session mix usable. New Game does not clear preferences. Named cue and soundscape data live in `src/data/audio.ts`; playback state is not saved.

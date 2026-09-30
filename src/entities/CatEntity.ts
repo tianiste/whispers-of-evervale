@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { cue } from '../systems/audio';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../config/world';
 import type { CatDefinition } from '../data/village';
 
@@ -21,6 +22,8 @@ export class CatEntity {
   private spot = 0;
   private onTop = false;
   private moving = false;
+  private audible = false;
+  private nextVoiceAt = 0;
 
   constructor(private readonly scene: Phaser.Scene, readonly definition: CatDefinition) {
     const lift = 12 * definition.scale;
@@ -40,6 +43,7 @@ export class CatEntity {
 
   update(time: number, player: Point): void {
     this.display.setDepth(this.onTop ? 5000 : this.display.y + 16);
+    this.audible = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y) < 260;
     if (this.moving || time < this.nextThinkAt) return;
     this.nextThinkAt = time + THINK_MS;
     const { behavior, x: homeX, y: homeY } = this.definition;
@@ -54,6 +58,8 @@ export class CatEntity {
       if (this.flees < 3) {
         this.flees++;
         this.say('!');
+        this.voice('cat-maks');
+        cue(this.scene, 'rustle', 0.45);
         this.dustPuffs();
         const fleeDistance = Phaser.Math.Between(170, 220);
         this.moveTo(this.clampHome(this.awayFrom(player, fleeDistance), 320), fleeDistance * 1.3);
@@ -64,7 +70,7 @@ export class CatEntity {
     } else if (behavior === 'loud') {
       // Miki closes the gap slowly, then talks about it.
       if (distance < 260) this.moveTo(this.clampHome(this.awayFrom(player, 40, player), 300), 1800);
-      if (distance < 260 && Math.random() < 0.18) this.say('MRRAOW!');
+      if (distance < 260 && Math.random() < 0.18) { this.say('MRRAOW!'); this.voice('cat-miki'); }
     } else if (behavior === 'confused') {
       const roll = Math.random();
       if (roll < 0.10) this.tailChase();
@@ -77,6 +83,7 @@ export class CatEntity {
     const { behavior, lines } = this.definition;
     this.petCount = behavior !== 'nearby' || time - this.lastPetAt < NOMI_PATIENCE_MS ? this.petCount + 1 : 1;
     this.lastPetAt = time;
+    cue(this.scene, behavior === 'nearby' && this.petCount >= lines.length ? 'cat-grumpy' : `cat-${this.definition.id}`);
     if (behavior === 'nearby') {
       const line = lines[Math.min(this.petCount, lines.length) - 1]!;
       if (this.petCount === 1) this.heart('♥');
@@ -123,6 +130,8 @@ export class CatEntity {
       targets: this.display, x: target.x, y: target.y, duration: 220, ease: 'Sine.In',
       onComplete: () => {
         this.say('?');
+        if (this.audible) cue(this.scene, 'bonk', 0.35);
+        this.voice('cat-viski');
         this.scene.tweens.add({
           targets: this.display, x: target.x - dx * 0.25, duration: 120, yoyo: true, ease: 'Back.Out',
           onComplete: () => { this.moving = false; },
@@ -181,6 +190,12 @@ export class CatEntity {
     this.moving = true;
     this.sprite.setFlipX(target.x < this.x);
     this.scene.tweens.add({ targets: this.display, x: target.x, y: target.y, duration, ease: 'Sine.InOut', onComplete: () => { this.moving = false; } });
+  }
+
+  private voice(name: string): void {
+    if (!this.audible || this.scene.time.now < this.nextVoiceAt) return;
+    cue(this.scene, name, 0.55);
+    this.nextVoiceAt = this.scene.time.now + 9000;
   }
 
   private say(text: string): void {
